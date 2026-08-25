@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]   # 77 is where license = "MIT" became valid
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rm-tables"
+version = "0.1.0"
+description = "Rosseland mean opacity tables for gas and dust, at any composition"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.22", "numba>=0.57"]
+authors = [{name = "Shmuel Gilbaum"}]
+keywords = ["opacity", "Rosseland", "OPAL", "dust", "accretion disc",
+            "stellar interior", "protoplanetary disc"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables"
+Repository = "https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables"
+Usage = "https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables/blob/main/USAGE.md"
+
+[project.optional-dependencies]
+hdf5 = ["h5py>=3"]
+test = ["pytest>=7", "h5py>=3"]
+
+[tool.setuptools.packages.find]
+include = ["rm_tables*"]
+
+[tool.setuptools.package-data]
+rm_tables = ["data/*.npz", "data/*.dat"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "rm_tables"]
+addopts = "--doctest-modules"

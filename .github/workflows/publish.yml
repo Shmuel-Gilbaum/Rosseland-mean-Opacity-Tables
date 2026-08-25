@@ -1,0 +1,110 @@
+name: Publish to PyPI
+
+# Create a GitHub release to publish. Nothing runs on an ordinary push.
+#
+#   1. bump the version in pyproject.toml AND rm_tables/__init__.py
+#   2. tag and push:  git tag v0.1.0 && git push origin v0.1.0
+#   3. draft a release on that tag and publish it
+#
+# The build job gates the upload: tests, both version checks and the wheel
+# contents all run before anything reaches the index. One interpreter runs
+# them, 3.12, against a floor of 3.10 declared in pyproject.toml.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:          # lets you rehearse the build without releasing
+
+permissions:
+  contents: read              # least privilege; the publish job adds what it needs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the package and its test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[test]"
+
+      - name: Unit tests, and every docstring example
+        run: python -m pytest -q
+
+      - name: The README and the usage guide examples must run
+        run: python -m pytest --doctest-glob='*.md' README.md USAGE.md -q
+
+      - name: The version must agree with itself
+        run: |
+          python - <<'PY'
+          import pathlib, re, tomllib
+          a = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          b = re.search(r'__version__\s*=\s*"([^"]+)"',
+                        pathlib.Path("rm_tables/__init__.py").read_text()).group(1)
+          print("pyproject:", a, " __init__:", b)
+          if a != b:
+              raise SystemExit(f"::error::pyproject {a} does not match __init__ {b}")
+          PY
+
+      - name: Release tag must match pyproject.toml
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG="${TAG#v}"
+          PROJ=$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "release tag: $TAG    pyproject: $PROJ"
+          if [ "$TAG" != "$PROJ" ]; then
+            echo "::error::tag $TAG does not match pyproject version $PROJ"
+            exit 1
+          fi
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+
+      - name: Check the metadata and the README rendering
+        run: twine check --strict dist/*
+
+      - name: The wheel must carry the data files
+        # A table cannot be built without them, and a missing one only shows up
+        # for someone installing from the index.
+        run: |
+          python - <<'PY'
+          import pathlib, zipfile
+          whl = next(pathlib.Path("dist").glob("*.whl"))
+          names = zipfile.ZipFile(whl).namelist()
+          for want in ("rm_tables/data/opal_gn93hz.npz",
+                       "rm_tables/data/kR_h2001.dat"):
+              if want not in names:
+                  raise SystemExit(f"::error::{want} is missing from {whl.name}")
+          print(whl.name, "carries both data files")
+          PY
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'      # a manual run builds but does not upload
+    environment:
+      name: pypi
+      url: https://pypi.org/p/rm-tables
+    permissions:
+      id-token: write          # mints the trusted-publisher token; nothing else needs it
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
