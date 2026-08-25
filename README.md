@@ -59,6 +59,22 @@ A temperature in K and a density in g/cm^3 give an opacity in cm^2/g.
 
 ```
 
+Every argument is optional. Naming them all gives the same answer as naming
+none, so this call is what the one above ran.
+
+```python
+>>> spelt_out = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
+...                               dataset="GN93hz", dXc=0.0, dXo=0.0)
+>>> spelt_out(3000.0, 1e-14) == kappa(3000.0, 1e-14)
+True
+
+```
+
+`X` and `Z` are the hydrogen and metal mass fractions and helium is the
+remainder. `cold` picks the cold source, `dataset` picks which of OPAL's 77
+published files supplies the hot end, and `dXc` and `dXo` add carbon and oxygen
+beyond what `Z` carries.
+
 Arrays broadcast against each other and the result takes the broadcast shape.
 
 ```python
@@ -79,6 +95,21 @@ a file. There are two: `cold` carries the cold source ramped into OPAL, and
 ((200, 500), (200, 500))
 
 ```
+
+`build` takes the same six arguments and seven more, all optional, for the
+range, the resolution and how the pair is split. The ranges are in `log10`, and
+`log10 R` is `rho / (T / 1e6)**3` in g/cm^3.
+
+```python
+>>> t2 = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
+...                      n_T=300, n_R=400)
+>>> t2.cold.shape, float(t2.cold_log_T[0]), float(t2.cold_log_R[-1])
+((300, 400), 2.0, -2.0)
+
+```
+
+`rm_tables.defaults` holds the value each argument falls back to, with the
+measurement that set it.
 
 ## The rest of the interface
 
