@@ -48,25 +48,17 @@ Any result that uses these tables should cite the papers above.
 
 ## Usage
 
-A temperature in K and a density in g/cm^3 give an opacity in cm^2/g.
+A temperature in K and a density in g/cm^3 give an opacity in cm^2/g. Every
+argument below is optional and is written at its default, so `rm_tables.opacity()`
+is the same call.
 
 ```python
 >>> import numpy as np
 >>> import rm_tables
->>> kappa = rm_tables.opacity()
+>>> kappa = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
+...                           dataset="GN93hz", dXc=0.0, dXo=0.0)
 >>> float(round(kappa(3000.0, 1e-14), 9))
 6.6356e-05
-
-```
-
-Every argument is optional. The values below are the defaults, so this call is
-the one above written out.
-
-```python
->>> spelt_out = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
-...                               dataset="GN93hz", dXc=0.0, dXo=0.0)
->>> spelt_out(3000.0, 1e-14) == kappa(3000.0, 1e-14)
-True
 
 ```
 

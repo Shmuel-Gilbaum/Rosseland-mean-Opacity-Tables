@@ -126,6 +126,15 @@ class Opacity:
             Naming the bound that was crossed and, where one exists, the source
             that would answer.
         """
+        if T.size == 0:
+            return
+        # Every comparison against NaN is false, so a NaN temperature passed
+        # both bounds and came back as a NaN opacity.
+        if not np.all(np.isfinite(T) & (T > 0.0)):
+            bad = float(T[~(np.isfinite(T) & (T > 0.0))].ravel()[0])
+            raise CoverageError(
+                f"temperature must be finite and positive, and {bad:g} K was "
+                f"requested.")
         lo, hi = float(np.min(T)), float(np.max(T))
         if lo < self._floor_K:
             other = [n for n, c in _BY_NAME.items()
@@ -164,6 +173,15 @@ class Opacity:
         """
         Ta, ra = np.broadcast_arrays(np.asarray(T, float), np.asarray(rho, float))
         self._check_temperature(Ta)
+        # A density at or below zero has no opacity. The cold branch clamps into
+        # its gas grid, so -1e30 came back as the dilute-edge value, while the
+        # hot branch took its logarithm and returned NaN: the same nonsense
+        # input answered two different ways.
+        if Ta.size and not np.all(np.isfinite(ra) & (ra > 0.0)):
+            bad = float(ra[~(np.isfinite(ra) & (ra > 0.0))].ravel()[0])
+            raise CoverageError(
+                f"density must be finite and positive, and {bad:g} g/cm^3 was "
+                f"requested.")
         tabulated = self._cold == "ferguson"
         if Ta.ndim == 0:
             if tabulated:
@@ -175,6 +193,8 @@ class Opacity:
                          self._opal_k, float(ra), float(Ta), self._zfac,
                          RAMP[0], RAMP[1])
             return float(v)
+        if Ta.size == 0:
+            return np.empty(Ta.shape)
         flat_T = np.ascontiguousarray(Ta.ravel())
         flat_r = np.ascontiguousarray(ra.ravel())
         out = np.empty(flat_T.size)

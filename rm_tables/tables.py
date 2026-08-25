@@ -26,7 +26,7 @@ Semenov divided by OPAL runs 0.62 to 1.65 over the window, median 0.81.
 _COLD_SOURCES = {"semenov": semenov, "ferguson": ferguson}
 
 
-def _check_or_advise(sources, log_T, log_R, split, hot_max):
+def _check_or_advise(sources, log_T, log_R, split, hot_max, may_split=True):
     """Raise unless the requested box is covered, saying what would fix it.
 
     A single rectangle is what a caller usually wants. Where one cannot hold the
@@ -43,39 +43,80 @@ def _check_or_advise(sources, log_T, log_R, split, hot_max):
         Temperature at which a two-table build would hand over, ``log10 T``.
     hot_max : float
         Density ceiling the hot table would reach.
+    may_split : bool, optional
+        Whether splitting is permitted. Where it already is, splitting is not
+        offered as a remedy, since it is in force and did not help.
 
     Raises
     ------
     CoverageError
         Carrying the remedy where one exists.
     """
+    # The nodes first, so the message counts the points the caller asked for.
     try:
         covers(sources, log_T[:, None], log_R[None, :],
                what="the requested range")
-        return
     except CoverageError as exc:
         first = str(exc)          # Python clears the name at the clause's end
+        axis_T, axis_R = log_T, log_R
+    else:
+        # Then between them. A band narrower than one cell is invisible to a
+        # node-only check, which made the same physical request legal at 50
+        # temperature points and illegal at 100.
+        fine_T = np.linspace(log_T[0], log_T[-1], max(log_T.size, 512))
+        fine_R = np.linspace(log_R[0], log_R[-1], max(log_R.size, 512))
+        try:
+            covers(sources, fine_T[:, None], fine_R[None, :])
+            return
+        except CoverageError:
+            gap_T, gap_R = np.broadcast_arrays(fine_T[:, None], fine_R[None, :])
+            held = np.zeros(gap_T.shape, bool)
+            for s in sources:
+                held |= _BY_NAME[s].covers(gap_T, gap_R)
+            i = int(np.argmax(~held.ravel()))
+            first = (
+                f"the requested range is not covered by {', '.join(sources)}. "
+                f"Every grid point is covered, but a band between them is not, "
+                f"the first at log10 T = {gap_T.ravel()[i]:.3f} "
+                f"({10 ** gap_T.ravel()[i]:,.0f} K), "
+                f"log10 R = {gap_R.ravel()[i]:.3f}. Raising the resolution "
+                f"would expose it rather than fix it.")
+            axis_T, axis_R = fine_T, fine_R
 
     # Would splitting help? A split lets the hot half reach `hot_max` while the
     # cold half keeps its own ceiling, so it helps only when everything
     # uncovered lies above the split.
-    grid_T, grid_R = np.broadcast_arrays(log_T[:, None], log_R[None, :])
+    # Analyse the grid that actually failed: on a between-node gap the caller's
+    # own nodes are all covered, so nothing there would be uncovered to reason
+    # about.
+    grid_T, grid_R = np.broadcast_arrays(axis_T[:, None], axis_R[None, :])
     ok = np.zeros(grid_T.shape, bool)
     for s in sources:
         ok |= _BY_NAME[s].covers(grid_T, grid_R)
     uncovered_T = grid_T[~ok]
-    if uncovered_T.min() >= split:
+    uncovered_R = grid_R[~ok]
+    # Splitting helps only where the hot table, OPAL alone up to `hot_max`,
+    # actually holds every uncovered point. Testing the temperature alone
+    # offered a two-table build for points OPAL cannot reach at any density,
+    # and offered it when splitting was already in force.
+    hot_would_hold = (_BY_NAME["opal"]
+                      .covers(uncovered_T,
+                              np.minimum(uncovered_R, hot_max)).all()
+                      and uncovered_R.max() <= hot_max)
+    if not may_split and uncovered_T.min() >= split and hot_would_hold:
         raise CoverageError(
             f"{first}\nEvery uncovered point is above "
-            f"{10 ** split:,.0f} K, so a two-table build covers the range: "
-            f"the cold table keeps its ceiling and the hot table, OPAL alone, "
-            f"reaches log10 R = {hot_max}.")
+            f"{10 ** split:,.0f} K and inside what OPAL holds, so a two-table "
+            f"build covers the range: the cold table keeps its ceiling and the "
+            f"hot table, OPAL alone, reaches log10 R = {hot_max}. "
+            f"Splitting is permitted by default; this build passed "
+            f"split=False.")
 
     # Would another cold source? Report honestly whether it covers the whole
     # box or only the offending corner, since those are different remedies.
     for other in (s for s in _COLD_SOURCES if s not in sources):
         cand = _BY_NAME[other]
-        if not cand.covers(uncovered_T, grid_R[~ok]).all():
+        if not cand.covers(uncovered_T, uncovered_R).all():
             continue
         try:
             covers((other, "opal"), log_T[:, None], log_R[None, :])
@@ -129,18 +170,38 @@ class Tables:
         """``True`` where the hot table answers, ``False`` where the cold does.
 
         Always ``False`` on a single table, since one grid covers everything.
+
+        A point denser than the cold table reaches goes to the hot table only
+        where the hot table holds its temperature. Below that, the cold table
+        answers and holds its density edge. Crossing a density edge costs 4
+        percent under 2000 K, where the tabulated opacity is nearly flat in
+        density; crossing the hot table's temperature floor instead returns an
+        ionised-gas opacity for cold material, measured 67 times too large at
+        2000 K.
         """
-        shape = np.broadcast(np.asarray(log_T), np.asarray(log_R)).shape
+        log_T = np.asarray(log_T)
+        log_R = np.asarray(log_R)
+        shape = np.broadcast(log_T, log_R).shape
         if not self.is_split:
             return np.zeros(shape, bool) if shape else False
-        return ((np.asarray(log_T) >= self.split_log_T)
-                | (np.asarray(log_R) > self.cold_log_R[-1]))
+        dense = (log_R > self.cold_log_R[-1]) & (log_T >= self.hot_log_T[0])
+        return (log_T >= self.split_log_T) | dense
 
     def kappa(self, T, rho):
         """Rosseland mean opacity in cm^2/g, from temperature and density.
 
         Bilinear in ``log10 T`` and ``log10 R``, held at the edge outside the
-        grid. Anything needing a smoother interpolant should fit its own spline
+        grid.
+
+        Holding the cold table's density ceiling is exact for most of the disc
+        and poor at a few temperatures. Over 200 temperatures from 100 K to
+        5623 K, a point a twentieth of a decade past the ceiling reads to a
+        median 0.001 dex, and one temperature of the 200 is out by 0.709 dex.
+        A point 1.25 decades past reads to a median 0.004 dex with 18 of the
+        200 out by more than 0.5. The bad ones sit where dust is being
+        destroyed and the opacity falls steeply with density. `rm_tables.opacity`
+        reads the source rather than a grid and answers there: Semenov reaches
+        ``log10 R`` of 1.47 at 1500 K where a default grid stops at -0.25. Anything needing a smoother interpolant should fit its own spline
         to `cold` and `hot` and use `which` to choose between them.
 
         Parameters
@@ -164,6 +225,16 @@ class Tables:
         """
         T, rho = np.broadcast_arrays(np.asarray(T, float),
                                      np.asarray(rho, float))
+        # The callable refuses these; this reader took their logarithm and
+        # returned NaN for a negative temperature while answering a density of
+        # zero with the dilute-edge value. Two readers, two silent outcomes.
+        if T.size:
+            bad = ~(np.isfinite(T) & (T > 0.0) & np.isfinite(rho) & (rho > 0.0))
+            if np.any(bad):
+                raise CoverageError(
+                    f"temperature and density must be finite and positive, "
+                    f"and T={float(T[bad].ravel()[0]):g} K with "
+                    f"rho={float(rho[bad].ravel()[0]):g} g/cm^3 was requested.")
         log_T = np.log10(T)
         log_R = np.log10(rho / (T / 1e6) ** 3)
         out = np.empty(log_T.shape)
@@ -326,6 +397,29 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
     dataset = defaults.OPAL_SET if dataset is None else dataset
     check_composition(X, Z, dataset)
 
+    # A descending or zero-width axis silently breaks every lookup: the reader
+    # clips and searches assuming ascending order. Refuse both here rather than
+    # returning a table whose values are right and whose lookups are not.
+    for name, rng in (("log_T_range", log_T_range), ("log_R_range", log_R_range)):
+        lo, hi = float(rng[0]), float(rng[1])
+        if not (np.isfinite(lo) and np.isfinite(hi)):
+            raise CoverageError(f"{name}={rng} must be finite.")
+        if hi <= lo:
+            raise CoverageError(
+                f"{name}={rng} must ascend. A descending or zero-width axis "
+                f"gives a table whose lookups are wrong.")
+    if hot_max <= log_R_range[0]:
+        raise CoverageError(
+            f"hot_log_R_max={hot_max} must exceed the density floor "
+            f"{log_R_range[0]}. A hot grid of zero width holds values but "
+            f"every lookup in it returns NaN.")
+    for name, n in (("n_T", n_T), ("n_R", n_R)):
+        if n < 2:
+            raise CoverageError(
+                f"{name}={n} must be at least 2. One grid point in an axis "
+                f"leaves nothing to interpolate between, and every lookup "
+                f"returns NaN.")
+
     log_T = np.linspace(log_T_range[0], log_T_range[1], n_T)
     log_R = np.linspace(log_R_range[0], log_R_range[1], n_R)
 
@@ -335,7 +429,8 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
     spans_both = log_T[0] < split_T < log_T[-1]
     single = not (may_split and spans_both)
     if single:
-        _check_or_advise((cold, "opal"), log_T, log_R, split_T, hot_max)
+        _check_or_advise((cold, "opal"), log_T, log_R, split_T, hot_max,
+                         may_split)
     else:
         # The cold grid stops at the cold source's own ceiling; the hot grid,
         # OPAL alone, reaches further in density. Clip the cold grid rather than
@@ -351,9 +446,19 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
                          split_T, hot_max)
 
     block = _assemble(source, cold, log_T, log_R, X, Z, dataset, dXc, dXo)
+    built_R = (float(log_R[0]), float(log_R[-1]))
     provenance = _provenance(X, Z, cold, source, n_T, n_R, log_T_range,
-                             log_R_range, hot_max, split_T, single,
+                             built_R, hot_max, split_T, single,
                              dataset, dXc, dXo)
+    provenance["log_R_range_requested"] = (float(log_R_range[0]),
+                                           float(log_R_range[1]))
+    if not _cold_contributed(log_T):
+        provenance["cold"] = None
+        provenance["cold_reference"] = None
+        provenance["reference_Z"] = None
+        provenance["cold_contributed"] = False
+    else:
+        provenance["cold_contributed"] = True
     if single:
         return Tables(log_T, log_R, block, None, None, None, split_T,
                       provenance)
@@ -364,6 +469,15 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
     return Tables(log_T, log_R, block, hot_T, hot_R,
                   opal.grid(hot_T, hot_R, X, Z, dataset=dataset,
                             dXc=dXc, dXo=dXo), split_T, provenance)
+
+
+def _cold_contributed(log_T):
+    """Whether any row lies below the top of the handover.
+
+    A range starting above it is OPAL alone, and naming a cold source in the
+    provenance would cite a paper the numbers never came from.
+    """
+    return bool(np.any(np.asarray(log_T) < RAMP[1]))
 
 
 def _assemble(source, cold, log_T, log_R, X, Z, dataset, dXc, dXo):
@@ -404,8 +518,8 @@ def _provenance(X, Z, cold, source, n_T, n_R, log_T_range, log_R_range,
         "opal_set": dataset, "dXc": float(dXc), "dXo": float(dXo),
         "reference_Z": source.REFERENCE_Z,
         "n_T": n_T, "n_R": n_R,
-        "log_T_range": tuple(log_T_range),
-        "log_R_range": tuple(log_R_range),
+        "log_T_range": tuple(float(v) for v in log_T_range),
+        "log_R_range": tuple(float(v) for v in log_R_range),
         "hot_log_R_max": float(hot_max),
         "split_log_T": split_T,
         "is_split": not single,

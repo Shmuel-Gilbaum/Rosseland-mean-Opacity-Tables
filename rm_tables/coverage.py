@@ -185,6 +185,10 @@ def check_composition(X, Z, dataset):
     """
     from .sources import opal
     X, Z = float(X), float(Z)
+    if not (np.isfinite(X) and np.isfinite(Z)):
+        raise CoverageError(
+            f"mass fractions must be finite, and X={X:g}, Z={Z:g} was "
+            f"requested.")
     if X < 0.0 or Z < 0.0:
         raise CoverageError(
             f"mass fractions cannot be negative, and X={X:g}, Z={Z:g} "

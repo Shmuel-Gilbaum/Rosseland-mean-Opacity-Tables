@@ -239,13 +239,17 @@ array([5.80000e-05, 4.57623e-01])
 
 Fitting a smoother interpolant means fitting one per grid and choosing between
 them with `Tables.which`, which answers `True` where the hot grid holds the
-point. It answers on temperature or on density, so a cool point above the cold
-ceiling still goes to the hot grid.
+point. A point denser than the cold grid reaches goes to the hot grid only
+where the hot grid holds its temperature, which starts at 5623 K. Below that
+the cold grid answers and holds its density edge, which costs 4 percent under
+2000 K where the tabulated opacity is nearly flat in density.
 
 ```python
->>> cool = np.log10(3000.0)
+>>> cool, warm = np.log10(3000.0), np.log10(2e4)
 >>> bool(pair.which(cool, -6.0)), bool(pair.which(cool, 0.5))
-(False, True)
+(False, False)
+>>> bool(pair.which(warm, 0.5)), bool(pair.which(5.0, -13.0))
+(True, True)
 
 ```
 

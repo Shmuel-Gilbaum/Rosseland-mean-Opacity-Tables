@@ -25,8 +25,14 @@ _HOT = ("hot_log_T", "hot_log_R", "hot")
 _ARRAYS = _COLD + _HOT
 
 
+_KINDS = ("numpy", "text", "hdf5")
+
+
 def _format_of(path, fmt=None):
     if fmt is not None:
+        if fmt not in _KINDS:
+            raise ValueError(
+                f"unknown format {fmt!r}. Use one of {list(_KINDS)}.")
         return fmt
     ext = os.path.splitext(path)[1].lower()
     if ext not in FORMATS:
@@ -97,8 +103,16 @@ def load(path, fmt=None):
 
 def _save_npz(t, path):
     names = _ARRAYS if t.is_split else _COLD
+    # np.savez_compressed appends '.npz' to any path not already ending in
+    # exactly that, so 'T.NPZ' became 'T.NPZ.npz' and load could not find it.
+    # Writing through an open handle takes the filename as given.
+    with open(path, "wb") as fh:
+        _write_npz(fh, t, names)
+
+
+def _write_npz(fh, t, names):
     np.savez_compressed(
-        path, split_log_T=np.array([t.split_log_T]),
+        fh, split_log_T=np.array([t.split_log_T]),
         is_split=np.array([t.is_split]),
         provenance=np.array([json.dumps(t.provenance)]),
         **{n: (getattr(t, n).astype(np.float32) if n in ("cold", "hot")
@@ -113,6 +127,23 @@ def _load_npz(path):
 
 # --- plain text -------------------------------------------------------------
 
+_PROV_BEGIN = "--- provenance ---"
+_PROV_END = "--- end provenance ---"
+
+
+def _plain(v):
+    """A value written so `_coerce` reads it back.
+
+    A NumPy scalar inside a tuple writes as ``np.float64(0.69897)``, which
+    cannot be parsed back, so the default temperature range came home as a
+    string. Every NumPy scalar becomes a plain Python number first.
+    """
+    if isinstance(v, np.generic):
+        return v.item()
+    if isinstance(v, (tuple, list)):
+        return tuple(_plain(x) for x in v)
+    return v
+
 def _save_text(t, path):
     """One header block, then each table as rows of temperature by density.
 
@@ -121,11 +152,15 @@ def _save_text(t, path):
     """
     with open(path, "w") as f:
         f.write("# Rosseland mean opacity, log10 kappa in cm^2/g\n")
-        f.write("#\n")
-        for k in sorted(t.provenance):
-            f.write(f"# {k} = {t.provenance[k]}\n")
-        f.write(f"# split_log_T = {t.split_log_T}\n")
-        f.write("#\n")
+        # The provenance sits between markers. Without them any prose line
+        # holding an equals sign is read back as a provenance entry: the line
+        # defining R produced a key named "R".
+        f.write(f"# {_PROV_BEGIN}\n")
+        prov = dict(t.provenance)
+        prov["split_log_T"] = t.split_log_T
+        for k in sorted(prov):
+            f.write(f"# {k} = {_plain(prov[k])}\n")
+        f.write(f"# {_PROV_END}\n")
         f.write("# Two tables follow. Each begins with a line giving its name\n")
         f.write("# and shape, then its log10 T axis, then its log10 R axis,\n")
         f.write("# then one row of log10 kappa per temperature.\n")
@@ -146,15 +181,20 @@ def _load_text(path):
     with open(path) as f:
         lines = f.read().splitlines()
     body = []
+    inside = False
     for line in lines:
         if line.startswith("#"):
-            if " = " in line:
+            tag = line[1:].strip()
+            if tag == _PROV_BEGIN:
+                inside = True
+            elif tag == _PROV_END:
+                inside = False
+            elif inside and " = " in line:
                 k, v = line[1:].split(" = ", 1)
                 k, v = k.strip(), v.strip()
+                prov[k] = _coerce(v)
                 if k == "split_log_T":
                     split = float(v)
-                else:
-                    prov[k] = _coerce(v)
         elif line.strip():
             body.append(line)
 
@@ -175,6 +215,8 @@ def _load_text(path):
 
 def _coerce(v):
     """Text back to the type it was written from."""
+    if v in ("True", "False"):
+        return v == "True"
     for cast in (int, float):
         try:
             return cast(v)
@@ -219,6 +261,5 @@ def _load_hdf5(path):
                   for n in _ARRAYS}
         split = float(f.attrs["split_log_T"])
         prov = {k: (v.tolist() if hasattr(v, "tolist") else v)
-                for k, v in f.attrs.items()
-                if k not in ("split_log_T", "quantity")}
+                for k, v in f.attrs.items() if k != "quantity"}
     return arrays, split, prov

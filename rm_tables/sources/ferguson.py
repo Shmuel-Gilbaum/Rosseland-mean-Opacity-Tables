@@ -18,6 +18,8 @@ import os
 
 import numpy as np
 
+from . import _composition
+
 __all__ = ["table_at", "grid", "axes", "compositions", "kappa",
            "REFERENCE", "REFERENCE_Z"]
 
@@ -86,23 +88,7 @@ def table_at(X, Z, z_floor=1e-5):
     Xs, Zs, log_T, log_R, K = _load()
     t_order = np.argsort(log_T)
     r_order = np.argsort(log_R)
-    xs = np.unique(Xs)
-    i = int(np.clip(np.searchsorted(xs, X) - 1, 0, len(xs) - 2))
-    x0, x1 = xs[i], xs[i + 1]
-    wx = 0.0 if x1 == x0 else (X - x0) / (x1 - x0)
-
-    target = np.log10(Z + z_floor)
-    ends = []
-    for xv in (x0, x1):
-        sel = np.where(Xs == xv)[0]
-        zs = Zs[sel]
-        o = np.argsort(zs)
-        sel, zs = sel[o], zs[o]
-        lz = np.log10(zs + z_floor)
-        j = int(np.clip(np.searchsorted(lz, target) - 1, 0, len(lz) - 2))
-        wz = (target - lz[j]) / (lz[j + 1] - lz[j])
-        ends.append((1 - wz) * K[sel[j]] + wz * K[sel[j + 1]])
-    block = (1 - wx) * ends[0] + wx * ends[1]
+    block = _composition.interpolate(Xs, Zs, K, X, Z, z_floor, "ferguson")
     return block[np.ix_(t_order, r_order)]
 
 

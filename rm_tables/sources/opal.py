@@ -29,6 +29,8 @@ import os
 
 import numpy as np
 
+from . import _composition
+
 __all__ = ["table_at", "grid", "axes", "compositions", "excess", "sets",
            "DEFAULT_SET", "REFERENCE"]
 
@@ -183,25 +185,8 @@ def table_at(X, Z, z_floor=1e-4, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
             "set %r has no table at dXc=%g, dXo=%g; see "
             "rm_tables.sources.opal.excess(%r)" % (dataset, dXc, dXo, dataset))
     Xs, Zs, K = Xs[keep], Zs[keep], K[keep]
-
-    xs = np.unique(Xs)
-    i, wx = _bracket(xs, X)
-    x0 = xs[i]
-    x1 = xs[i + 1] if xs.size > 1 else x0
-
-    ends = []
-    target = np.log10(Z + z_floor)
-    for xv in (x0, x1):
-        sel = np.where(Xs == xv)[0]
-        o = np.argsort(Zs[sel])
-        sel = sel[o]
-        lz = np.log10(Zs[sel] + z_floor)
-        j, wz = _bracket(lz, target)
-        if lz.size < 2:
-            ends.append(K[sel[0]])
-        else:
-            ends.append((1 - wz) * K[sel[j]] + wz * K[sel[j + 1]])
-    return ((1 - wx) * ends[0] + wx * ends[1])[:, order]
+    block = _composition.interpolate(Xs, Zs, K, X, Z, z_floor, dataset)
+    return block[:, order]
 
 
 def grid(log_T, log_R, X, Z, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
