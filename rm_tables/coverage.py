@@ -10,7 +10,8 @@ Nothing here fills, holds or extrapolates.
 """
 import numpy as np
 
-__all__ = ["Coverage", "CoverageError", "OPAL", "FERGUSON", "SEMENOV", "covers"]
+__all__ = ["Coverage", "CoverageError", "OPAL", "FERGUSON", "SEMENOV",
+           "covers", "check_composition"]
 
 
 class CoverageError(ValueError):
@@ -157,3 +158,55 @@ def covers(sources, log_T, log_R, what="the requested range"):
         f"{int(np.size(ok) - ok.sum())} of {np.size(ok)} points fall outside, "
         f"the first at log10 T = {bad_T:.3f} ({10 ** bad_T:.4g} K), "
         f"log10 R = {bad_R:.3f}.{hint}")
+
+
+def check_composition(X, Z, dataset):
+    """Refuse a composition the physics or the tables cannot hold.
+
+    Parameters
+    ----------
+    X : float
+        Hydrogen mass fraction.
+    Z : float
+        Metal mass fraction.
+    dataset : str
+        The OPAL set the hot opacity comes from, from
+        `rm_tables.sources.opal.sets`.
+
+    Raises
+    ------
+    CoverageError
+        If helium would be negative, if either fraction is negative, or if the
+        pair lies outside what the chosen set tabulates. OPAL interpolates
+        linearly in hydrogen and in the logarithm of the metallicity, and
+        continues that straight line past its own edge, so a request outside
+        returns a number with nothing behind it. Hydrogen of 1.5 returns
+        5.5e-136 cm^2/g at 1e5 K.
+    """
+    from .sources import opal
+    X, Z = float(X), float(Z)
+    if X < 0.0 or Z < 0.0:
+        raise CoverageError(
+            f"mass fractions cannot be negative, and X={X:g}, Z={Z:g} "
+            f"was requested.")
+    if X + Z > 1.0:
+        raise CoverageError(
+            f"X={X:g} and Z={Z:g} leave helium at {1.0 - X - Z:g}. "
+            f"Helium is the remainder, so X + Z cannot exceed 1.")
+    xs, zs = opal.compositions(dataset)
+    x_hi, z_hi = float(np.max(xs)), float(np.max(zs))
+    x_lo = float(np.min(xs))
+    # The tabulated fractions are stored in 32-bit floats, so 0.7 reads back as
+    # 0.699999988079071. Compare at that precision or an exactly tabulated
+    # value falls outside its own set.
+    Xc, Zc = float(np.float32(X)), float(np.float32(Z))
+    if not x_lo <= Xc <= x_hi:
+        raise CoverageError(
+            f"set {dataset!r} tabulates hydrogen from {x_lo:g} to {x_hi:g}, "
+            f"and X={X:g} was requested."
+            + (f" That set holds one hydrogen fraction only."
+               if x_lo == x_hi else ""))
+    if Zc > z_hi:
+        raise CoverageError(
+            f"set {dataset!r} tabulates metals up to {z_hi:g}, and Z={Z:g} "
+            f"was requested. rm_tables.sources.opal.sets() lists the others.")

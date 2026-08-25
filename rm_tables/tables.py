@@ -11,7 +11,7 @@ filled, held or extrapolated at build time.
 import numpy as np
 
 from . import defaults
-from .coverage import _BY_NAME, CoverageError, covers
+from .coverage import _BY_NAME, CoverageError, covers, check_composition
 from .sources import ferguson, opal, semenov
 
 __all__ = ["Tables", "build", "load"]
@@ -324,6 +324,7 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
     may_split = True if split is None else bool(split)
     source = _COLD_SOURCES[cold]
     dataset = defaults.OPAL_SET if dataset is None else dataset
+    check_composition(X, Z, dataset)
 
     log_T = np.linspace(log_T_range[0], log_T_range[1], n_T)
     log_R = np.linspace(log_R_range[0], log_R_range[1], n_R)

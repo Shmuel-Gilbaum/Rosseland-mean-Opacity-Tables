@@ -17,7 +17,7 @@ ns through OPAL.
 import numpy as np
 
 from . import defaults
-from .coverage import _BY_NAME, CoverageError
+from .coverage import _BY_NAME, CoverageError, check_composition
 from .sources import _compiled as _c
 from .sources import ferguson, opal, semenov
 
@@ -235,6 +235,7 @@ def opacity(X=None, Z=None, cold=None, dataset=None, dXc=0.0, dXo=0.0):
     Z = Z0 if Z is None else float(Z)
     cold = defaults.COLD if cold is None else cold
     dataset = defaults.OPAL_SET if dataset is None else dataset
+    check_composition(X, Z, dataset)
     if cold not in ("semenov", "ferguson"):
         raise KeyError(f"unknown cold source {cold!r}. "
                        f"Available: 'semenov', 'ferguson'.")

@@ -59,6 +59,34 @@ dust regime the Rosseland mean is a harmonic average over grain absorption, so
 scaling every monochromatic opacity scales the mean by the same factor. The
 scaling is applied to the dust and never to the gas.
 
+The default set tabulates hydrogen from 0 to 1 and metals from 0 to 0.1. A
+request outside that raises, and so does a pair leaving helium negative. OPAL
+interpolates linearly in hydrogen and in the logarithm of the metallicity and
+continues that line past its own edge, so an unguarded request returns a number
+with nothing behind it: hydrogen of 1.5 gave 5.5e-136 cm^2/g at 1e5 K.
+
+```python
+>>> try:
+...     rm_tables.opacity(X=0.9, Z=0.3)
+... except ValueError as e:
+...     print(e)
+X=0.9 and Z=0.3 leave helium at -0.2. Helium is the remainder, so X + Z cannot exceed 1.
+
+```
+
+OPAL's fixed-composition sets hold one hydrogen fraction each, named in the
+file. Asking one of those for a different hydrogen fraction raises rather than
+returning the single table it holds.
+
+```python
+>>> try:
+...     rm_tables.opacity(X=0.35, Z=0.02, dataset="Gz020.x70")
+... except ValueError as e:
+...     print(str(e).split(", and")[0])
+set 'Gz020.x70' tabulates hydrogen from 0.7 to 0.7
+
+```
+
 ## Choosing the cold source
 
 Semenov et al. 2003 tabulates the temperature at which existing grains

@@ -71,9 +71,21 @@ True
 ```
 
 `X` and `Z` are the hydrogen and metal mass fractions and helium is the
-remainder. `cold` picks the cold source, `dataset` picks which of OPAL's 77
-published files supplies the hot end, and `dXc` and `dXo` add carbon and oxygen
-beyond what `Z` carries.
+remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source, `dataset`
+picks which of OPAL's 77 published files supplies the hot end, and `dXc` and
+`dXo` add carbon and oxygen beyond what `Z` carries.
+
+A composition outside what the chosen set tabulates raises rather than
+extrapolating.
+
+```python
+>>> try:
+...     rm_tables.opacity(X=0.0, Z=0.5)
+... except ValueError as e:
+...     print(e)
+set 'GN93hz' tabulates metals up to 0.1, and Z=0.5 was requested. rm_tables.sources.opal.sets() lists the others.
+
+```
 
 Arrays broadcast against each other and the result takes the broadcast shape.
 
