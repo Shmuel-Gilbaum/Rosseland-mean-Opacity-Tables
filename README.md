@@ -59,8 +59,8 @@ A temperature in K and a density in g/cm^3 give an opacity in cm^2/g.
 
 ```
 
-Every argument is optional. Naming them all gives the same answer as naming
-none, so this call is what the one above ran.
+Every argument is optional. The values below are the defaults, so this call is
+the one above written out.
 
 ```python
 >>> spelt_out = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
