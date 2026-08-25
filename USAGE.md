@@ -3,14 +3,14 @@
 Rosseland mean opacity at a requested composition, either as a callable or as a
 tabulated grid. Every number below is what the example printed.
 
-`opacity` answers at a point and builds nothing. `build` returns grids for
-anyone fitting their own interpolant or writing a file. `load` reads such a
-file back.
+`opacity` answers at a point, reading the sources directly. `build` returns
+grids for anyone fitting their own interpolant or writing a file. `load` reads
+such a file back.
 
 ## An opacity at a point, with `opacity`
 
-`opacity` returns a callable. One build at a composition serves any number of
-calls.
+`opacity` returns a callable. Building it reads the tables once, so it is worth
+keeping and calling many times.
 
 ```python
 >>> import numpy as np
@@ -56,14 +56,13 @@ are indexed by hydrogen and metals only.
 
 A tenth of the metals gives a tenth of the opacity at 500 K, exactly. In the
 dust regime the Rosseland mean is a harmonic average over grain absorption, so
-scaling every monochromatic opacity scales the mean by the same factor. The
-scaling is applied to the dust and never to the gas.
+scaling every monochromatic opacity scales the mean by the same factor. It
+applies to the dust alone; the gas keeps its tabulated values.
 
-The default set tabulates hydrogen from 0 to 1 and metals from 0 to 0.1. A
-request outside that raises, and so does a pair leaving helium negative. OPAL
-interpolates linearly in hydrogen and in the logarithm of the metallicity and
-continues that line past its own edge, so an unguarded request returns a number
-with nothing behind it: hydrogen of 1.5 gave 5.5e-136 cm^2/g at 1e5 K.
+The default set tabulates metals from 0 to 0.1, at nine hydrogen fractions from
+0 to 0.95. Above 0.95 it holds one table per hydrogen fraction, the helium-free
+one, so 0.97 exists only with metals at 0.03. A request that no pair brackets
+raises, as does a pair leaving helium negative.
 
 ```python
 >>> try:
@@ -75,8 +74,7 @@ X=0.9 and Z=0.3 leave helium at -0.2. Helium is the remainder, so X + Z cannot e
 ```
 
 OPAL's fixed-composition sets hold one hydrogen fraction each, named in the
-file. Asking one of those for a different hydrogen fraction raises rather than
-returning the single table it holds.
+file. Asking one of those for a different hydrogen fraction raises.
 
 ```python
 >>> try:
@@ -105,8 +103,7 @@ Ferguson, as in an atmosphere.
 
 ```
 
-The two are alternatives and are never combined. Two Rosseland means cannot be
-averaged, so no mixture of them is offered.
+Two Rosseland means cannot be averaged, so the package offers no mixture.
 
 Ferguson stops at 501 K and Semenov reaches 5 K. Ferguson reaches a higher
 density than Semenov above 2154 K, and carries a composition through its own
@@ -161,8 +158,8 @@ does not hold raises and names the set.
 ## A tabulated grid, with `build`
 
 `build` returns `log10` opacity in cm^2/g on a regular grid of `log10 T` and
-`log10 R`, where `R = rho / (T / 1e6)**3` in g/cm^3. It returns two of them:
-`cold` carries the cold source ramped into OPAL, `hot` carries OPAL alone.
+`log10 R`, where `R = rho / (T / 1e6)**3` in g/cm^3. Two grids come back.
+`cold` carries the cold source ramped into OPAL. `hot` carries OPAL alone.
 Building the default takes about 1.4 s.
 
 ```python
@@ -190,7 +187,7 @@ Both ranges describe the cold grid. The hot grid runs from OPAL's floor of
 The resolution changes the table. Semenov's dust destruction spans 192 K, which
 is two and a half cells at the default grid, so the tabulated cliff is gentler
 than the model's own. Two tables built at different resolutions are not
-comparable, which is why every table records the resolution it was built at.
+comparable, so every table records the resolution it was built at.
 
 ```python
 >>> t.provenance["n_T"], t.provenance["n_R"]
@@ -204,9 +201,8 @@ that set it.
 
 ## The pair of grids
 
-The two grids are a pair, not two independent tables. `cold` carries the dust
-and molecular opacity and `hot` carries OPAL, and a lookup takes whichever holds
-the point.
+The two grids work together. `cold` carries the dust and molecular opacity,
+`hot` carries OPAL, and a lookup takes whichever holds the point.
 
     cold   5 K to 1.26e7 K       log R -8 to -0.25    Semenov, ramped into OPAL
     hot    5623 K to 1.26e7 K    log R -8 to +1.0     OPAL alone
@@ -241,8 +237,10 @@ Fitting a smoother interpolant means fitting one per grid and choosing between
 them with `Tables.which`, which answers `True` where the hot grid holds the
 point. A point denser than the cold grid reaches goes to the hot grid only
 where the hot grid holds its temperature, which starts at 5623 K. Below that
-the cold grid answers and holds its density edge, which costs 4 percent under
-2000 K where the tabulated opacity is nearly flat in density.
+the cold grid answers and holds its density edge. Over 200 temperatures from
+100 K to 5623 K that reads to a median 0.001 dex, with the failures confined to
+the dust-destruction cliff, where one temperature of the 200 is out by 0.709
+dex.
 
 ```python
 >>> cool, warm = np.log10(3000.0), np.log10(2e4)
@@ -256,9 +254,10 @@ the cold grid answers and holds its density edge, which costs 4 percent under
 `Tables.split_log_T` is the temperature it switches at, 4.0 in `log10` by
 default. `help` on the returned object documents every attribute.
 
-Splitting is permitted, never forced. A range that sits on one side of the
+Splitting is permitted rather than forced. A range that sits on one side of the
 split temperature comes back as one grid whatever `split` says, because the
-second would be empty. `split=False` requires a single grid and raises rather than clipping.
+second would be empty. `split=False` requires a single grid and raises rather
+than clipping.
 
 ```python
 >>> try:
@@ -292,9 +291,8 @@ Tables(X=0.7381, Z=0.0134, cold='semenov', (200, 500) + (200, 500))
 
 ## A request outside the sources
 
-A range leaving what the chosen sources hold raises rather than being filled or
-extrapolated, and the message names the offending corner and any source that
-would cover it.
+A range leaving what the chosen sources hold raises. The message names the
+offending corner and any source that would cover it.
 
 ```python
 >>> try:

@@ -15,8 +15,7 @@ joins a cold source to OPAL across the temperature range where both hold
 values. Nothing is refitted. A request outside their coverage raises an error
 naming the corner and the source that would answer it.
 
-The data ships inside the package, so nothing is downloaded at run time. NumPy
-and Numba are the dependencies; `h5py` is needed only for HDF5 files.
+The data ships inside the package, so nothing is downloaded at run time.
 
 ## The data
 
@@ -26,8 +25,7 @@ and Numba are the dependencies; `h5py` is needed only for HDF5 files.
 | Semenov | Semenov et al. 2003, A&A 410, 611 | 5 K to 10,000 K | dust and molecular gas |
 | Ferguson | Ferguson et al. 2005, ApJ 623, 585 | 501 K to 31,600 K | dust and molecular gas |
 
-Semenov and Ferguson are alternatives, not layers. One is chosen per table and
-the two are never combined.
+The caller chooses one of Semenov or Ferguson for the cold end.
 
 **OPAL** ships as all 77 published Type-1 files, 6766 tables between them, on a
 grid of hydrogen and metal mass fraction. The default is `GN93hz`, at Grevesse
@@ -45,6 +43,8 @@ Any result that uses these tables should cite the papers above.
 ## Install
 
     pip install rm-tables
+
+Requires NumPy and Numba. `h5py` is needed only to read and write HDF5 files.
 
 ## Usage
 
@@ -90,8 +90,8 @@ Arrays broadcast against each other and the result takes the broadcast shape.
 ```
 
 `build` returns tabulated grids instead, for fitting an interpolant or writing
-a file. There are two: `cold` carries the cold source ramped into OPAL, and
-`hot` carries OPAL alone, which reaches a higher density.
+a file. `cold` carries the cold source ramped into OPAL. `hot` carries OPAL
+alone and reaches a higher density.
 
 ```python
 >>> t = rm_tables.build(X=0.7381, Z=0.0134)
@@ -119,8 +119,8 @@ measurement that set it.
 
 - **Composition.** Hydrogen and metals are arguments and helium is the
   remainder. Metallicity scales the dust exactly and leaves the gas alone.
-- **The cold source.** Semenov tabulates where grains evaporate and Ferguson
-  where they condense. Heating material takes Semenov, cooling material
+- **The cold source.** Semenov tabulates where grains evaporate, Ferguson
+  where they condense. Heating material suits Semenov, cooling material suits
   Ferguson.
 - **The metal mixture.** All 77 OPAL sets are selectable, and so are the
   carbon and oxygen enhanced grids inside them.
@@ -156,8 +156,7 @@ Full guide with runnable examples for all of it:
 
 This package is MIT licensed. See `LICENSE`.
 
-That covers the code written here. The data it redistributes carries its own
-terms.
+The data it redistributes carries its own terms.
 
 Semenov's source grants free use, modification and redistribution, quoted at the
 top of `rm_tables/sources/_semenov_fit.py` with its copyright line.
