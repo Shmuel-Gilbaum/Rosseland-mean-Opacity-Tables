@@ -79,12 +79,23 @@ jobs:
           python - <<'PY'
           import pathlib, zipfile
           whl = next(pathlib.Path("dist").glob("*.whl"))
-          names = zipfile.ZipFile(whl).namelist()
-          for want in ("rm_tables/data/opal_gn93hz.npz",
-                       "rm_tables/data/kR_h2001.dat"):
-              if want not in names:
-                  raise SystemExit(f"::error::{want} is missing from {whl.name}")
-          print(whl.name, "carries both data files")
+          names = set(zipfile.ZipFile(whl).namelist())
+          # Read the list off the tree rather than writing it here. A written
+          # list goes stale the first time a data file is renamed, and then
+          # fails the release for a file that no longer exists.
+          # Hidden files are never packaged, and a filesystem can leave one
+          # behind when something deletes a file another process still holds.
+          want = sorted(p.as_posix()
+                        for p in pathlib.Path("rm_tables/data").iterdir()
+                        if p.is_file() and not p.name.startswith("."))
+          if not want:
+              raise SystemExit("::error::rm_tables/data holds no files")
+          missing = [w for w in want if w not in names]
+          if missing:
+              raise SystemExit(f"::error::{whl.name} is missing {missing}")
+          print(f"{whl.name} carries all {len(want)} data files:")
+          for w in want:
+              print("   ", w)
           PY
 
       - uses: actions/upload-artifact@v7
