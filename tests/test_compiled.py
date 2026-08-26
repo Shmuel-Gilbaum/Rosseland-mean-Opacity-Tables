@@ -1,7 +1,8 @@
-"""The compiled kernels against the references they were transcribed from.
+"""The compiled routines against the published ones they were transcribed from.
 
-These two checks are the reason the compiled path can be trusted. A rewrite
-that is merely plausible is worth nothing; only agreement with the reference is.
+These two checks are the reason the compiled routines can be trusted. A rewrite
+that is merely plausible is worth nothing; only agreement with the published
+routine is.
 """
 import numpy as np
 import pytest
@@ -12,8 +13,9 @@ from rm_tables.sources import semenov
 
 
 def test_the_compiled_semenov_is_bit_identical_to_the_port():
-    """Not 'close'. Identical. The only changes numba forced were replacing
-    np.polyval with a Horner loop and reversing the coefficients once."""
+    """Not 'close'. The same numbers. Compiling forced two changes and neither
+    touches the arithmetic: the polynomial is evaluated term by term rather
+    than by a NumPy call, and its coefficients are reversed once beforehand."""
     eG = semenov._gas_grid()
     exact = 0
     n = 0
@@ -64,9 +66,10 @@ def test_bilinear_is_exact_on_a_linear_function():
 
 
 def test_caching_degrades_instead_of_refusing_to_import():
-    """numba writes its cache beside the source file. A package installed
-    read-only offers nowhere, and numba raises when the decorator RUNS, which
-    is at import: the whole package became unimportable rather than slower.
+    """numba saves its compiled code beside the source file so a later session
+    need not compile again. A package installed somewhere read-only offers
+    nowhere to save it, and numba refuses at the moment the package is
+    imported, so the whole package became unusable rather than merely slower.
     """
     from rm_tables.sources._compiled import cached_njit
 

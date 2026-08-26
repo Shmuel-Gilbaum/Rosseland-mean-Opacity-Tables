@@ -1,6 +1,6 @@
 """The opacity must be reachable from compiled code.
 
-A solver whose residual is compiled cannot call a Python object, so without
+A solver whose equations are compiled cannot call a Python object, so without
 this the only route was building a table and fitting an interpolant, which
 resamples the sources and costs accuracy.
 """
@@ -14,9 +14,10 @@ COLD = ["semenov", "ferguson"]
 
 
 @pytest.mark.parametrize("cold", COLD)
-def test_the_compiled_form_agrees_bit_for_bit(cold):
-    """A second implementation that merely agrees closely would be a second
-    source of truth. These share the same kernel, so they must be identical."""
+def test_the_compiled_form_gives_the_same_numbers(cold):
+    """Two routes that merely agreed closely would be two different opacities.
+    Both read the same tables by the same arithmetic, so both must give the
+    same numbers exactly."""
     k = rm_tables.opacity(cold=cold)
     kc = k.compiled()
     floor = 10.0 ** rm_tables.coverage._BY_NAME[cold].log_T[0]
@@ -53,7 +54,8 @@ def test_the_object_itself_still_cannot_be_compiled():
 
 
 def test_a_compiled_loop_gives_the_same_answer_as_the_array_call():
-    """The array path and the scalar kernel must not drift apart."""
+    """Reading many points at once and reading them one at a time must not
+    drift apart."""
     k = rm_tables.opacity()
     kappa = k.compiled()
 

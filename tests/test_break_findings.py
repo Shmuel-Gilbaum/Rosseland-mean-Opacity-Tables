@@ -187,8 +187,8 @@ def test_the_provenance_density_range_is_the_one_the_grid_has():
 
 
 def test_a_cold_source_that_contributed_nothing_is_not_cited():
-    """Two builds naming different papers were bit-identical, because both were
-    entirely above the handover and OPAL alone produced them."""
+    """Two tables naming different papers held the same numbers, because both
+    were entirely above the handover and OPAL alone produced them."""
     a = rm_tables.build(cold="semenov", log_T_range=(4.1, 7.1), n_T=30, n_R=20)
     b = rm_tables.build(cold="ferguson", log_T_range=(4.6, 7.1), n_T=30, n_R=20)
     for t in (a, b):

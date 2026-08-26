@@ -2,8 +2,8 @@
 
 Both compiled lookups clamp into their grids, so a request outside a source's
 range would come back as that source's nearest tabulated value instead of an
-error. Those tests are parametrised over every registered source, so a new one
-cannot be added without declaring the range it holds.
+error. Every source is checked, so a new one cannot be added without declaring
+the range it holds.
 """
 import numpy as np
 import pytest

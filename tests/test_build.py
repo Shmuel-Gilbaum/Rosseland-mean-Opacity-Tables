@@ -130,8 +130,8 @@ def test_a_range_inside_opals_ceiling_still_builds():
 
 
 def test_a_single_grid_prints_without_crashing():
-    """Typing the object at a prompt was enough to raise: the repr read the hot
-    grid's shape, and a single-grid build has no hot grid."""
+    """Printing the object was enough to raise an error, because the summary
+    line reads the hot grid's shape and a single-grid build has no hot grid."""
     one = B.build(log_T_range=(2.9, 3.9), n_T=30, n_R=20)
     assert not one.is_split
     assert "(30, 20)" in repr(one)

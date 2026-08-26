@@ -1,7 +1,7 @@
 """A Rosseland mean is never zero, and the callable must never return one.
 
-Semenov's routine returns 0.0 to mean "no value here", which is a sentinel and
-not an opacity. Passing it on sends an optical depth to zero and a
+Semenov's routine returns 0.0 to mean "no value here", which stands for a
+missing entry rather than for an opacity. Passing it on sends an optical depth to zero and a
 radiative-transfer factor divides by it, so the wrong answer arrives far from
 where it was made.
 

@@ -43,8 +43,8 @@ def test_the_builder_takes_a_set_and_the_hot_grid_moves(name):
 
 
 def test_the_default_set_is_what_was_built_before_the_argument_existed():
-    """Naming the default explicitly must be a no-op, or every stored table
-    built before this argument existed is now unreproducible."""
+    """Naming the default explicitly must change nothing, or every table built
+    before this argument existed can no longer be reproduced."""
     a = rm_tables.build(n_T=30, n_R=20)
     b = rm_tables.build(n_T=30, n_R=20, dataset=defaults.OPAL_SET)
     assert np.array_equal(a.cold, b.cold)
