@@ -212,9 +212,8 @@ class Opacity:
         """A version of this opacity that compiled code can call.
 
         The object itself cannot be: numba refuses a Python object holding
-        Python arrays, so a compiled residual cannot reach it. This returns a
-        numba function closing over the same arrays, which numba freezes as
-        constants when it compiles.
+        Python arrays, so a compiled residual cannot reach it. This returns the
+        same opacity as a numba function, reading the same tables.
 
         Returns
         -------
@@ -224,12 +223,10 @@ class Opacity:
 
         Notes
         -----
-        The answer is bit-identical to calling this object. Inside a compiled
-        loop it costs 157 ns a point, against 246 ns for this object on arrays
-        and 513 ns for a bicubic spline fitted to a built table. Compiling
-        costs about 1.6 s once.
-
-        Build it once and keep it. A fresh closure is a fresh compilation.
+        Inside a compiled loop this costs 157 ns a point, against 246 ns for
+        calling the object on arrays and 513 ns for a bicubic spline fitted to
+        a built table. Compiling costs about 0.4 s once, so build it once and
+        keep it: building it again compiles it again.
 
         Examples
         --------

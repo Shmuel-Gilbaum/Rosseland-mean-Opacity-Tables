@@ -84,6 +84,22 @@ rho = np.array([1.25e-19, 1e-14, 1e-16])
 print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
 ```
 
+A compiled solver cannot call the object, because numba refuses a Python
+object holding Python arrays. `compiled` returns the same opacity as a numba
+function, at 157 ns a point.
+
+```python
+from numba import njit
+
+fast = rm_tables.opacity().compiled()
+
+@njit
+def optical_depth(T, rho, height):
+    return fast(T, rho) * rho * height
+
+print(optical_depth(3000.0, 1e-14, 1e13))    # -> 6.6356...e-06
+```
+
 `build` returns tabulated grids instead, for fitting an interpolant or writing
 a file. `cold` carries the cold source ramped into OPAL. `hot` carries OPAL
 alone and reaches a higher density.
@@ -119,6 +135,9 @@ measurement that set it.
   it was built at.
 - **Saving.** Compressed NumPy, plain text or HDF5, chosen by the file
   extension, each carrying the provenance beside the numbers.
+- **Compiled code.** `opacity(...).compiled()` is callable from inside numba,
+  and a fitted spline over a built table is the route where the solver needs
+  smooth derivatives.
 
 Full guide with runnable examples for all of it:
 [USAGE.md](https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables/blob/main/USAGE.md).

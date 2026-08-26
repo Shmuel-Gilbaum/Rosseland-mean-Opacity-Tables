@@ -164,9 +164,8 @@ def optical_depth(T, rho, height):
 print(optical_depth(3000.0, 1e-14, 1e13))    # -> 6.6356...e-06
 ```
 
-It costs 157 ns a point inside a compiled loop and is bit-identical to calling
-the object, over every point tested. Compiling costs about 0.4 s once. Build it
-once and keep it: a fresh closure is a fresh compilation.
+It costs 157 ns a point inside a compiled loop. Compiling costs about 0.4 s
+once, so build it once and keep it: building it again compiles it again.
 
 ### Fitting an interpolant instead
 
@@ -191,8 +190,8 @@ cold = RectBivariateSpline(t.cold_log_T, t.cold_log_R,
 hot = RectBivariateSpline(t.hot_log_T, t.hot_log_R,
                           np.nan_to_num(t.hot, nan=-4.0))
 
-# Read the knots and coefficients out once. Closing over them makes each a
-# compile-time constant, so the lookup carries no Python object.
+# Read the knots and coefficients out once, so the lookup below holds numbers
+# rather than a Python object, which numba cannot compile.
 ctx, cty, cc, ckx, cky = cold.tx, cold.ty, cold.c, cold.kx, cold.ky
 htx, hty, hc, hkx, hky = hot.tx, hot.ty, hot.c, hot.kx, hot.ky
 split = float(t.split_log_T)
