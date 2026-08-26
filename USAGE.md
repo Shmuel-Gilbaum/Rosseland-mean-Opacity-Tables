@@ -13,12 +13,11 @@ such a file back.
 keeping and calling many times.
 
 ```python
->>> import numpy as np
->>> import rm_tables
->>> kappa = rm_tables.opacity()
->>> float(round(kappa(3000.0, 1e-14), 9))
-6.6356e-05
+import numpy as np
+import rm_tables
 
+kappa = rm_tables.opacity()
+print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
 Temperature is in K, density in g/cm^3, and the result in cm^2/g.
@@ -26,19 +25,17 @@ Temperature is in K, density in g/cm^3, and the result in cm^2/g.
 Arrays broadcast against each other and the result takes the broadcast shape.
 
 ```python
->>> T = np.array([500.0, 3000.0, 1e5])
->>> rho = np.array([1.25e-19, 1e-14, 1e-16])
->>> np.array2string(kappa(T, rho), precision=6)
-'[1.753536e+00 6.635618e-05 4.460250e-01]'
-
+T = np.array([500.0, 3000.0, 1e5])
+rho = np.array([1.25e-19, 1e-14, 1e-16])
+print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
 ```
 
 A column of temperatures against a row of densities gives the rectangle.
 
 ```python
->>> kappa(np.array([1e3, 1e4])[:, None], np.array([1e-14, 1e-13, 1e-12])[None, :]).shape
-(2, 3)
-
+column = np.array([1e3, 1e4])[:, None]
+row = np.array([1e-14, 1e-13, 1e-12])[None, :]
+print(kappa(column, row).shape)    # -> (2, 3)
 ```
 
 ## Composition
@@ -47,11 +44,10 @@ Hydrogen and metals are arguments and helium is the remainder. Opacity tables
 are indexed by hydrogen and metals only.
 
 ```python
->>> solar = rm_tables.opacity(X=0.7381, Z=0.0134)
->>> poor = rm_tables.opacity(X=0.7381, Z=0.00134)
->>> float(round(solar(500.0, 1e-14), 6)), float(round(poor(500.0, 1e-14), 6))
-(1.753536, 0.175354)
-
+solar = rm_tables.opacity(X=0.7381, Z=0.0134)
+poor = rm_tables.opacity(X=0.7381, Z=0.00134)
+print(solar(500.0, 1e-14))    # -> 1.7535359703708098
+print(poor(500.0, 1e-14))     # -> 0.17535359703708098
 ```
 
 A tenth of the metals gives a tenth of the opacity at 500 K, exactly. In the
@@ -65,24 +61,20 @@ one, so 0.97 exists only with metals at 0.03. A request that no pair brackets
 raises, as does a pair leaving helium negative.
 
 ```python
->>> try:
-...     rm_tables.opacity(X=0.9, Z=0.3)
-... except ValueError as e:
-...     print(e)
-X=0.9 and Z=0.3 leave helium at -0.2. Helium is the remainder, so X + Z cannot exceed 1.
-
+try:
+    rm_tables.opacity(X=0.9, Z=0.3)
+except ValueError as e:
+    print(e)    # -> X=0.9 and Z=0.3 leave helium at -0.2. Helium is the ...
 ```
 
 OPAL's fixed-composition sets hold one hydrogen fraction each, named in the
 file. Asking one of those for a different hydrogen fraction raises.
 
 ```python
->>> try:
-...     rm_tables.opacity(X=0.35, Z=0.02, dataset="Gz020.x70")
-... except ValueError as e:
-...     print(str(e).split(", and")[0])
-set 'Gz020.x70' tabulates hydrogen from 0.7 to 0.7
-
+try:
+    rm_tables.opacity(X=0.35, Z=0.02, dataset="Gz020.x70")
+except ValueError as e:
+    print(str(e).split(", and")[0])    # -> set 'Gz020.x70' tabulates hydrogen from 0.7 to 0.7
 ```
 
 ## Choosing the cold source
@@ -96,11 +88,8 @@ Heating material takes Semenov, as in an accretion flow. Cooling material takes
 Ferguson, as in an atmosphere.
 
 ```python
->>> float(round(rm_tables.opacity(cold="semenov")(700.0, 1e-14), 6))
-1.32689
->>> float(round(rm_tables.opacity(cold="ferguson")(700.0, 1e-14), 6))
-0.511706
-
+print(rm_tables.opacity(cold="semenov")(700.0, 1e-14))     # -> 1.3268899275683468
+print(rm_tables.opacity(cold="ferguson")(700.0, 1e-14))    # -> 0.5117060620278185
 ```
 
 Two Rosseland means cannot be averaged, so the package offers no mixture.
@@ -115,25 +104,23 @@ OPAL supplies the hot end. Its 77 published files carry different metal
 mixtures, and all of them ship.
 
 ```python
->>> from rm_tables.sources import opal
->>> len(opal.sets())
-77
->>> opal.sets()[28:33]
-('GN93hz.CNOtoNe', 'GN93hz.COtoN', 'GN93hz.CtoN', 'GS98hz', 'GS98hz.CNOtoNe')
+from rm_tables.sources import opal
 
+print(len(opal.sets()))       # -> 77
+print(opal.sets()[28:33])     # -> ('GN93hz.CNOtoNe', 'GN93hz.COtoN', ...
 ```
 
 `dataset` selects one. The mixture moves the answer at 1e5 K by about 9 percent
 across the four main sets.
 
 ```python
->>> for name in ("GN93hz", "GS98hz", "AGS04hz", "W95hz"):
-...     print("%-9s %.6f" % (name, rm_tables.opacity(dataset=name)(1e5, 1e-8)))
-GN93hz    0.927698
-GS98hz    0.936628
-AGS04hz   0.967055
-W95hz     0.885030
+for name in ("GN93hz", "GS98hz", "AGS04hz", "W95hz"):
+    print("%-9s %.6f" % (name, rm_tables.opacity(dataset=name)(1e5, 1e-8)))
 
+# -> GN93hz    0.927698
+# -> GS98hz    0.936628
+# -> AGS04hz   0.967055
+# -> W95hz     0.885030
 ```
 
 The default is `GN93hz`, at Grevesse & Noels 1993 metal ratios.
@@ -144,16 +131,97 @@ the file rather than being interpolated, so a set carrying them is chosen by
 name.
 
 ```python
->>> at = dict(X=0.70, Z=0.02, dataset="Gz020.x70")
->>> float(round(rm_tables.opacity(**at)(1e5, 1e-8), 6))
-0.993116
->>> float(round(rm_tables.opacity(dXc=0.1, **at)(1e5, 1e-8), 6))
-1.020939
-
+at = dict(X=0.70, Z=0.02, dataset="Gz020.x70")
+print(rm_tables.opacity(**at)(1e5, 1e-8))              # -> 0.9931160483613025
+print(rm_tables.opacity(dXc=0.1, **at)(1e5, 1e-8))     # -> 1.0209394827969092
 ```
 
 `rm_tables.sources.opal.excess` lists the pairs one set tabulates. A pair it
 does not hold raises and names the set.
+
+## Which entry point to use
+
+`opacity` reads the sources at every call and suits work driven from Python:
+one-off values, a plot, a sweep over arrays. On arrays it costs 246 ns a point.
+One point at a time from Python costs 6,841 ns, almost all of it Python
+overhead.
+
+A compiled solver cannot call the object: numba refuses a Python object holding
+Python arrays. `Opacity.compiled` returns the same opacity as a numba function,
+which can.
+
+```python
+import numpy as np
+import rm_tables
+from numba import njit
+
+kappa = rm_tables.opacity(X=0.7381, Z=0.0134).compiled()
+
+@njit
+def optical_depth(T, rho, height):
+    return kappa(T, rho) * rho * height
+
+print(optical_depth(3000.0, 1e-14, 1e13))    # -> 6.6356...e-06
+```
+
+It costs 157 ns a point inside a compiled loop and is bit-identical to calling
+the object, over every point tested. Compiling costs about 0.4 s once. Build it
+once and keep it: a fresh closure is a fresh compilation.
+
+### Fitting an interpolant instead
+
+A spline over a built table is slower than either, at 513 ns a point, and it
+resamples the sources. It earns its place where the solver needs smooth
+derivatives, since the compiled lookup above is bilinear in OPAL and has a
+kinked derivative there.
+
+`scijit` supplies scipy-compatible routines that compile under numba:
+
+```python
+import numpy as np
+import rm_tables
+from numba import njit
+from scijit.interpolate import RectBivariateSpline, bispeu
+
+t = rm_tables.build(X=0.7381, Z=0.0134)
+
+# A spline cannot carry NaN, and OPAL leaves two corners blank.
+cold = RectBivariateSpline(t.cold_log_T, t.cold_log_R,
+                           np.nan_to_num(t.cold, nan=-4.0))
+hot = RectBivariateSpline(t.hot_log_T, t.hot_log_R,
+                          np.nan_to_num(t.hot, nan=-4.0))
+
+# Read the knots and coefficients out once. Closing over them makes each a
+# compile-time constant, so the lookup carries no Python object.
+ctx, cty, cc, ckx, cky = cold.tx, cold.ty, cold.c, cold.kx, cold.ky
+htx, hty, hc, hkx, hky = hot.tx, hot.ty, hot.c, hot.kx, hot.ky
+split = float(t.split_log_T)
+cold_r_max = float(t.cold_log_R[-1])
+hot_t_min = float(t.hot_log_T[0])
+
+@njit
+def kappa(T, rho):
+    """Rosseland mean opacity in cm^2/g, from K and g/cm^3."""
+    x = np.empty(1)
+    y = np.empty(1)
+    x[0] = np.log10(T)
+    y[0] = np.log10(rho / (T * 1e-6) ** 3)
+    # `Tables.which`, inlined: numba cannot call the method.
+    if x[0] >= split or (y[0] > cold_r_max and x[0] >= hot_t_min):
+        return 10.0 ** bispeu(x, y, htx, hty, hc, hkx, hky)[0]
+    return 10.0 ** bispeu(x, y, ctx, cty, cc, ckx, cky)[0]
+
+print(kappa(1e6, 1e-8))    # -> 0.3500...
+```
+
+The fit is not free. Against the sources, over a grid spanning the cold table,
+it reads to a median 0.0004 dex, with 8.6 percent of points past 0.1 dex and a
+worst case of 1.87 dex at 1381 K in the dilute corner, where a bicubic spline
+overshoots the dust-destruction cliff. Raising `n_T` narrows the cliff rather
+than the overshoot.
+
+`agndisks` carries a worked version of this, with the spline cached per
+composition and the table optionally read from a file.
 
 ## A tabulated grid, with `build`
 
@@ -163,21 +231,19 @@ does not hold raises and names the set.
 Building the default takes about 1.4 s.
 
 ```python
->>> t = rm_tables.build(X=0.7381, Z=0.0134)
->>> t.cold.shape, t.hot.shape
-((200, 500), (200, 500))
-
+t = rm_tables.build(X=0.7381, Z=0.0134)
+print(t.cold.shape, t.hot.shape)    # -> (200, 500) (200, 500)
 ```
 
 The range and the resolution are arguments. A disc that never leaves 100 K to
 1e6 K needs no table below that.
 
 ```python
->>> small = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
-...                         n_T=300, n_R=400)
->>> small.cold.shape, float(small.cold_log_T[0]), float(small.cold_log_R[-1])
-((300, 400), 2.0, -2.0)
-
+small = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
+                        n_T=300, n_R=400)
+print(small.cold.shape)         # -> (300, 400)
+print(small.cold_log_T[0])      # -> 2.0
+print(small.cold_log_R[-1])     # -> -2.0
 ```
 
 Both ranges describe the cold grid. The hot grid runs from OPAL's floor of
@@ -190,9 +256,7 @@ than the model's own. Two tables built at different resolutions are not
 comparable, so every table records the resolution it was built at.
 
 ```python
->>> t.provenance["n_T"], t.provenance["n_R"]
-(200, 500)
-
+print(t.provenance["n_T"], t.provenance["n_R"])    # -> 200 500
 ```
 
 `help(rm_tables.build)` documents all thirteen arguments and
@@ -217,20 +281,20 @@ carries the full height.
 `Tables.is_split` says which came back, and `hot` is `None` on a single grid.
 
 ```python
->>> rm_tables.build(log_T_range=(0.699, 3.0), n_T=40, n_R=25).is_split
-False
->>> pair = rm_tables.build(n_T=40, n_R=25)
->>> pair.is_split, float(pair.cold_log_R[-1]), float(pair.hot_log_R[-1])
-(True, -0.25, 1.0)
+one = rm_tables.build(log_T_range=(0.699, 3.0), n_T=40, n_R=25)
+print(one.is_split)    # -> False
 
+pair = rm_tables.build(n_T=40, n_R=25)
+print(pair.is_split)             # -> True
+print(pair.cold_log_R[-1])       # -> -0.25
+print(pair.hot_log_R[-1])        # -> 1.0
 ```
 
 `Tables.kappa` reads the right grid without being told which.
 
 ```python
->>> np.round(pair.kappa(np.array([3e3, 1e5]), np.array([1e-14, 1e-16])), 6)
-array([5.80000e-05, 4.57623e-01])
-
+print(pair.kappa(np.array([3e3, 1e5]), np.array([1e-14, 1e-16])))
+# -> [5.7967...e-05 4.5762...e-01]
 ```
 
 Fitting a smoother interpolant means fitting one per grid and choosing between
@@ -243,12 +307,9 @@ the dust-destruction cliff, where one temperature of the 200 is out by 0.709
 dex.
 
 ```python
->>> cool, warm = np.log10(3000.0), np.log10(2e4)
->>> bool(pair.which(cool, -6.0)), bool(pair.which(cool, 0.5))
-(False, False)
->>> bool(pair.which(warm, 0.5)), bool(pair.which(5.0, -13.0))
-(True, True)
-
+cool, warm = np.log10(3000.0), np.log10(2e4)
+print(pair.which(cool, -6.0), pair.which(cool, 0.5))    # -> False False
+print(pair.which(warm, 0.5), pair.which(5.0, -13.0))    # -> True True
 ```
 
 `Tables.split_log_T` is the temperature it switches at, 4.0 in `log10` by
@@ -260,12 +321,10 @@ second would be empty. `split=False` requires a single grid and raises rather
 than clipping.
 
 ```python
->>> try:
-...     rm_tables.build(log_R_range=(-8.0, 1.0), n_T=40, n_R=25, split=False)
-... except ValueError as e:
-...     print(str(e).splitlines()[-1])
-Splitting the table does not help. cold='ferguson' covers that corner but not the whole range: it starts at 501 K, and 5.0 K was requested. Raise the temperature floor to use it.
-
+try:
+    rm_tables.build(log_R_range=(-8.0, 1.0), n_T=40, n_R=25, split=False)
+except ValueError as e:
+    print(str(e).splitlines()[-1])    # -> Splitting the table does not help. ...
 ```
 
 ## Saving and loading
@@ -281,12 +340,13 @@ the units alongside the numbers, so a file found later can be traced to what
 produced it.
 
 ```python
->>> import os, tempfile
->>> path = os.path.join(tempfile.mkdtemp(), "solar.txt")
->>> t.save(path)
->>> rm_tables.load(path)
-Tables(X=0.7381, Z=0.0134, cold='semenov', (200, 500) + (200, 500))
+import os
+import tempfile
 
+path = os.path.join(tempfile.mkdtemp(), "solar.txt")
+t.save(path)
+print(rm_tables.load(path))
+# -> Tables(X=0.7381, Z=0.0134, cold='semenov', (200, 500) + (200, 500))
 ```
 
 ## A request outside the sources
@@ -295,12 +355,11 @@ A range leaving what the chosen sources hold raises. The message names the
 offending corner and any source that would cover it.
 
 ```python
->>> try:
-...     rm_tables.build(log_T_range=(0.0, 4.0), n_T=40, n_R=25)
-... except ValueError as e:
-...     print(str(e).splitlines()[0])
-the requested range is not covered by semenov, opal: 175 of 1000 points fall outside, the first at log10 T = 0.000 (1 K), log10 R = -8.000. No source covers it.
-
+try:
+    rm_tables.build(log_T_range=(0.0, 4.0), n_T=40, n_R=25)
+except ValueError as e:
+    print(str(e).splitlines()[0])
+# -> the requested range is not covered by semenov, opal: 175 of 1000 points ...
 ```
 
 `opacity` holds the nearest value past a density edge, matching what a
@@ -309,12 +368,10 @@ instead, because holding across a temperature edge would return a dust opacity
 for an ionised gas.
 
 ```python
->>> try:
-...     rm_tables.opacity()(2.0, 1e-14)
-... except ValueError as e:
-...     print(e)
-semenov has no value below 5 K, and 2 K was requested. No source reaches that temperature.
-
+try:
+    rm_tables.opacity()(2.0, 1e-14)
+except ValueError as e:
+    print(e)    # -> semenov has no value below 5 K, and 2 K was requested. ...
 ```
 
 The error is `rm_tables.coverage.CoverageError`, which subclasses `ValueError`,

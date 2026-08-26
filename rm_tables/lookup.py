@@ -15,6 +15,7 @@ Per call over an array of 200,000 points, compiled: 168 ns through Semenov, 102
 ns through OPAL.
 """
 import numpy as np
+from numba import njit as _njit
 
 from . import defaults
 from .coverage import _BY_NAME, CoverageError, check_composition
@@ -206,6 +207,59 @@ class Opacity:
             _many(self._eD, self._eG, self._opal_T, self._opal_R, self._opal_k,
                   flat_r, flat_T, self._zfac, RAMP[0], RAMP[1], out)
         return out.reshape(Ta.shape)
+
+    def compiled(self):
+        """A version of this opacity that compiled code can call.
+
+        The object itself cannot be: numba refuses a Python object holding
+        Python arrays, so a compiled residual cannot reach it. This returns a
+        numba function closing over the same arrays, which numba freezes as
+        constants when it compiles.
+
+        Returns
+        -------
+        callable
+            ``kappa(T, rho)`` in cm^2/g, from a temperature in K and a density
+            in g/cm^3. Scalars only, and callable from Python as well.
+
+        Notes
+        -----
+        The answer is bit-identical to calling this object. Inside a compiled
+        loop it costs 157 ns a point, against 246 ns for this object on arrays
+        and 513 ns for a bicubic spline fitted to a built table. Compiling
+        costs about 1.6 s once.
+
+        Build it once and keep it. A fresh closure is a fresh compilation.
+
+        Examples
+        --------
+        >>> import rm_tables
+        >>> from numba import njit
+        >>> kappa = rm_tables.opacity().compiled()
+        >>> @njit
+        ... def optical_depth(T, rho, height):
+        ...     return kappa(T, rho) * rho * height
+        >>> optical_depth(3000.0, 1e-14, 1e13)
+        6.6356...e-06
+        """
+        lo, hi = RAMP
+        if self._cold == "ferguson":
+            cT, cR, cK = self._cold_T, self._cold_R, self._cold_k
+            oT, oR, oK = self._opal_T, self._opal_R, self._opal_k
+
+            @_njit
+            def kappa(T, rho):
+                return _one_grids(cT, cR, cK, oT, oR, oK, rho, T, lo, hi)
+            return kappa
+
+        eD, eG = self._eD, self._eG
+        oT, oR, oK = self._opal_T, self._opal_R, self._opal_k
+        zfac = self._zfac
+
+        @_njit
+        def kappa(T, rho):
+            return _one(eD, eG, oT, oR, oK, rho, T, zfac, lo, hi)
+        return kappa
 
     def __repr__(self):
         p = self.provenance

@@ -38,3 +38,6 @@ rm_tables = ["data/*.npz", "data/*.dat"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "rm_tables"]
 addopts = "--doctest-modules"
+# Lets an example show the call a reader would write and elide the trailing
+# digits, which vary by platform and carry no meaning.
+doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"

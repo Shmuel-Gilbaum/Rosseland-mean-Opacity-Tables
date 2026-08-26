@@ -53,13 +53,12 @@ argument below is optional and is written at its default, so `rm_tables.opacity(
 is the same call.
 
 ```python
->>> import numpy as np
->>> import rm_tables
->>> kappa = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
-...                           dataset="GN93hz", dXc=0.0, dXo=0.0)
->>> float(round(kappa(3000.0, 1e-14), 9))
-6.6356e-05
+import numpy as np
+import rm_tables
 
+kappa = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
+                          dataset="GN93hz", dXc=0.0, dXo=0.0)
+print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
 `X` and `Z` are the hydrogen and metal mass fractions and helium is the
@@ -71,22 +70,18 @@ A composition outside what the chosen set tabulates raises rather than
 extrapolating.
 
 ```python
->>> try:
-...     rm_tables.opacity(X=0.0, Z=0.5)
-... except ValueError as e:
-...     print(e)
-set 'GN93hz' tabulates metals up to 0.1, and Z=0.5 was requested. rm_tables.sources.opal.sets() lists the others.
-
+try:
+    rm_tables.opacity(X=0.0, Z=0.5)
+except ValueError as e:
+    print(e)    # -> set 'GN93hz' tabulates metals up to 0.1, and Z=0.5 was ...
 ```
 
 Arrays broadcast against each other and the result takes the broadcast shape.
 
 ```python
->>> T = np.array([500.0, 3000.0, 1e5])
->>> rho = np.array([1.25e-19, 1e-14, 1e-16])
->>> np.array2string(kappa(T, rho), precision=6)
-'[1.753536e+00 6.635618e-05 4.460250e-01]'
-
+T = np.array([500.0, 3000.0, 1e5])
+rho = np.array([1.25e-19, 1e-14, 1e-16])
+print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
 ```
 
 `build` returns tabulated grids instead, for fitting an interpolant or writing
@@ -94,10 +89,8 @@ a file. `cold` carries the cold source ramped into OPAL. `hot` carries OPAL
 alone and reaches a higher density.
 
 ```python
->>> t = rm_tables.build(X=0.7381, Z=0.0134)
->>> t.cold.shape, t.hot.shape
-((200, 500), (200, 500))
-
+t = rm_tables.build(X=0.7381, Z=0.0134)
+print(t.cold.shape, t.hot.shape)    # -> (200, 500) (200, 500)
 ```
 
 `build` takes the same six arguments and seven more, all optional, for the
@@ -105,11 +98,9 @@ range, the resolution and how the pair is split. The ranges are in `log10`, and
 `log10 R` is `rho / (T / 1e6)**3` in g/cm^3.
 
 ```python
->>> t2 = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
-...                      n_T=300, n_R=400)
->>> t2.cold.shape, float(t2.cold_log_T[0]), float(t2.cold_log_R[-1])
-((300, 400), 2.0, -2.0)
-
+t2 = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
+                     n_T=300, n_R=400)
+print(t2.cold.shape, t2.cold_log_T[0], t2.cold_log_R[-1])    # -> (300, 400) 2.0 -2.0
 ```
 
 `rm_tables.defaults` holds the value each argument falls back to, with the

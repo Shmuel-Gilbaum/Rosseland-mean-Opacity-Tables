@@ -38,7 +38,7 @@ jobs:
         run: python -m pytest -q
 
       - name: The README and the usage guide examples must run
-        run: python -m pytest --doctest-glob='*.md' README.md USAGE.md -q
+        run: python -m pytest tests/test_examples.py -q
 
       - name: The version must agree with itself
         run: |
