@@ -218,14 +218,22 @@ class Opacity:
         -------
         callable
             ``kappa(T, rho)`` in cm^2/g, from a temperature in K and a density
-            in g/cm^3. Scalars only, and callable from Python as well.
+            in g/cm^3. Scalars only, and callable from Python as well. NaN
+            outside the temperature range the chosen sources cover, and NaN at
+            a density that is not finite and positive.
 
         Notes
         -----
+        A compiled function cannot raise `rm_tables.CoverageError`, so the
+        refusal that the object makes an exception is a NaN here. The bounds
+        are the same on both paths.
+
         Inside a compiled loop this costs 157 ns a point, against 246 ns for
         calling the object on arrays and 513 ns for a bicubic spline fitted to
-        a built table. Compiling costs about 0.4 s once, so build it once and
-        keep it: building it again compiles it again.
+        a built table. The range check is 1.006 times the unchecked call,
+        median of nine interleaved runs of 200,000 points. Compiling costs
+        about 0.4 s once, so build it once and keep it: building it again
+        compiles it again.
 
         Examples
         --------
@@ -239,12 +247,16 @@ class Opacity:
         6.6356...e-06
         """
         lo, hi = RAMP
+        floor_K, ceiling_K = self._floor_K, self._ceiling_K
         if self._cold == "ferguson":
             cT, cR, cK = self._cold_T, self._cold_R, self._cold_k
             oT, oR, oK = self._opal_T, self._opal_R, self._opal_k
 
             @_njit
             def kappa(T, rho):
+                if not (floor_K <= T <= ceiling_K and rho > 0.0
+                        and np.isfinite(rho)):
+                    return np.nan
                 return _one_grids(cT, cR, cK, oT, oR, oK, rho, T, lo, hi)
             return kappa
 
@@ -254,6 +266,9 @@ class Opacity:
 
         @_njit
         def kappa(T, rho):
+            if not (floor_K <= T <= ceiling_K and rho > 0.0
+                    and np.isfinite(rho)):
+                return np.nan
             return _one(eD, eG, oT, oR, oK, rho, T, zfac, lo, hi)
         return kappa
 

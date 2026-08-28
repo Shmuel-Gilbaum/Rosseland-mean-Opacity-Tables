@@ -50,10 +50,11 @@ print(solar(500.0, 1e-14))    # -> 1.7535359703708098
 print(poor(500.0, 1e-14))     # -> 0.17535359703708098
 ```
 
-A tenth of the metals gives a tenth of the opacity at 500 K, exactly. In the
-dust regime the Rosseland mean is a harmonic average over grain absorption, so
-scaling every monochromatic opacity scales the mean by the same factor. It
-applies to the dust alone; the gas keeps its tabulated values.
+A tenth of the metals gives a tenth of the opacity at 500 K. In the dust regime
+the Rosseland mean is a harmonic average over grain absorption, so scaling every
+monochromatic opacity scales the mean by the same factor. That holds at fixed
+grain sizes and mineralogy, which no argument here changes. It applies to the
+dust alone; the gas keeps its tabulated values.
 
 The default set tabulates metals from 0 to 0.1, at nine hydrogen fractions from
 0 to 0.95. Above 0.95 it holds one table per hydrogen fraction, the helium-free
@@ -166,6 +167,11 @@ print(optical_depth(3000.0, 1e-14, 1e13))    # -> 6.6356...e-06
 
 It costs 157 ns a point inside a compiled loop. Compiling costs about 0.4 s
 once, so build it once and keep it: building it again compiles it again.
+
+A compiled function cannot raise, so the refusal the object makes an exception
+is a NaN here. `kappa(1e9, 1e-8)` and `kappa(3000.0, -1.0)` are NaN, at the
+same bounds the object raises on. The range check is 1.006 times the unchecked
+call, median of nine interleaved runs of 200,000 points.
 
 ### Fitting an interpolant instead
 
@@ -363,7 +369,7 @@ except ValueError as e:
 `opacity` holds the nearest value past a density edge, matching what a
 tabulated grid does past its own span. A temperature no source reaches raises
 instead, because holding across a temperature edge would return a dust opacity
-for an ionised gas.
+for an ionised gas. `Opacity.compiled` returns NaN at those same bounds.
 
 ```python
 try:

@@ -87,7 +87,8 @@ print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
 
 A compiled solver cannot call the object, because numba refuses a Python
 object holding Python arrays. `compiled` returns the same opacity as a numba
-function, at 157 ns a point.
+function, at 157 ns a point. A compiled function cannot raise, so it returns
+NaN where the object raises.
 
 ```python
 from numba import njit
@@ -126,7 +127,8 @@ carries the measurement that set it.
 ## The rest of the interface
 
 - **Composition.** Hydrogen and metals are arguments and helium is the
-  remainder. Metallicity scales the dust exactly and leaves the gas alone.
+  remainder. Metallicity scales the dust, at fixed grain sizes and mineralogy,
+  and leaves the gas alone.
 - **The cold source.** Semenov tabulates where grains evaporate, Ferguson
   where they condense. Heating material suits Semenov, cooling material suits
   Ferguson.
@@ -158,7 +160,8 @@ Full guide with runnable examples for all of it:
   default ceiling of 12.6 million K.
 - **A temperature no source reaches.** The call raises rather than holding.
   Holding across a temperature edge would return a dust opacity for an ionised
-  gas.
+  gas. The compiled form returns NaN at the same bounds, and at a density that
+  is not finite and positive.
 - **The compiled routines.** They are cached next to the installed package.
   Where that location is not writable they recompile each session, about 1.3 s,
   and `NUMBA_CACHE_DIR` points them somewhere writable.

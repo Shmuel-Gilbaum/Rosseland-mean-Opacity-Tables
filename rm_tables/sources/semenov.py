@@ -7,8 +7,10 @@ polynomial has no density dependence.
 Metallicity multiplies the dust and leaves the gas alone. The Rosseland mean is
 a harmonic average, so scaling every monochromatic opacity scales the mean by
 the same factor, and dust opacity per gram of gas is proportional to dust mass
-per gram of gas. At the reference metallicity the multiply is the identity and
-this module reproduces the published routine.
+per gram of gas. That holds at fixed grain sizes and mineralogy, which the
+dust model nrm/h/s fixes and which no argument here changes. At the reference
+metallicity the multiply is the identity and this module reproduces the
+published routine.
 """
 import os
 
@@ -48,15 +50,15 @@ def _gas_grid():
     return _GAS
 
 
-def kappa(rho, T, Z=REFERENCE_Z):
+def kappa(T, rho, Z=REFERENCE_Z):
     """Rosseland mean opacity, cm^2/g, or 0 where Semenov has no value.
 
     Parameters
     ----------
-    rho : float
-        Gas density, g/cm^3.
     T : float
         Temperature, K.
+    rho : float
+        Gas density, g/cm^3.
     Z : float, optional
         Metal mass fraction. The dust is multiplied by ``Z / REFERENCE_Z``; the
         gas is not. The default reproduces the unmodified routine.
@@ -124,7 +126,7 @@ def grid(log_T, log_R, Z=REFERENCE_Z):
         T = 10.0 ** lt
         scale = (T / 1e6) ** 3
         for j, lr in enumerate(np.ravel(log_R)):
-            v = kappa(10.0 ** lr * scale, T, Z)
+            v = kappa(T, 10.0 ** lr * scale, Z)
             if v > 0.0:
                 out[i, j] = np.log10(v)
     return out

@@ -15,7 +15,7 @@ def test_the_reference_metallicity_reproduces_the_unmodified_routine():
         for lr in np.linspace(-8.0, 1.0, 19):
             rho = 10.0 ** lr * (T / 1e6) ** 3
             a = f.cop(f.eR, eG, rho, T)
-            b = semenov.kappa(rho, T)
+            b = semenov.kappa(T, rho)
             worst = max(worst, abs(a - b))
     assert worst == 0.0, worst
 
@@ -25,15 +25,15 @@ def test_dust_scales_with_metallicity_and_gas_does_not():
     on the gas grid, metallicity must not reach the answer at all."""
     rho = 1e-14
     for T, expected in ((500.0, 2.0), (3000.0, 1.0)):
-        one = semenov.kappa(rho, T, semenov.REFERENCE_Z)
-        two = semenov.kappa(rho, T, 2.0 * semenov.REFERENCE_Z)
+        one = semenov.kappa(T, rho, semenov.REFERENCE_Z)
+        two = semenov.kappa(T, rho, 2.0 * semenov.REFERENCE_Z)
         assert one > 0.0
         assert two / one == pytest.approx(expected, rel=1e-9)
 
 
 def test_a_zero_means_no_answer_not_a_small_opacity():
     """Outside the gas grid's density bounds the routine returns 0."""
-    assert semenov.kappa(1e-30, 5000.0) == 0.0
+    assert semenov.kappa(5000.0, 1e-30) == 0.0
 
 
 def test_the_grid_marks_missing_points_with_nan_rather_than_filling():

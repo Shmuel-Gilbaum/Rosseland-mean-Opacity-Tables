@@ -69,3 +69,18 @@ def test_a_compiled_loop_gives_the_same_answer_as_the_array_call():
     rho = 10.0 ** np.linspace(-16.0, -8.0, 200) * (T / 1e6) ** 3
     got = sweep(T, rho, np.empty(200))
     assert np.array_equal(got, k(T, rho))
+
+
+@pytest.mark.parametrize("cold", COLD)
+@pytest.mark.parametrize("T,rho", [(1e9, 1e-8), (1e12, 1e-8), (2.0, 1e-14),
+                                   (0.0, 1e-8), (np.nan, 1e-8),
+                                   (3000.0, -1.0), (3000.0, 0.0),
+                                   (3000.0, np.nan)])
+def test_the_compiled_form_refuses_what_the_object_refuses(cold, T, rho):
+    """A compiled function cannot raise, so it returns NaN where the object
+    raises. Without this the compiled path answered 1e9 K with OPAL's edge
+    value and a negative density with a number."""
+    k = rm_tables.opacity(cold=cold)
+    with pytest.raises(rm_tables.coverage.CoverageError):
+        k(T, rho)
+    assert np.isnan(k.compiled()(T, rho))

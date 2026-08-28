@@ -148,8 +148,9 @@ class Tables:
         The same for the hot table, and ``None`` where one grid covers the
         range.
     split_log_T : float
-        Take the hot table at or above this ``log10`` temperature, or wherever
-        the density parameter exceeds ``cold_log_R[-1]``.
+        Take the hot table at or above this ``log10`` temperature, or where the
+        density parameter exceeds ``cold_log_R[-1]`` and the temperature is at
+        or above ``hot_log_T[0]``.
     provenance : dict
         Everything needed to reproduce this pair, including the resolution,
         which changes the answer and is not physics.
@@ -179,6 +180,19 @@ class Tables:
         density; crossing the hot table's temperature floor instead returns an
         ionised-gas opacity for cold material, measured 67 times too large at
         2000 K.
+
+        Parameters
+        ----------
+        log_T : float or array_like
+            ``log10`` of temperature in K.
+        log_R : float or array_like
+            ``log10 R``, where ``R = rho / (T / 1e6)**3`` in g/cm^3.
+
+        Returns
+        -------
+        bool or ndarray of bool
+            ``True`` where the hot table answers, of the shape the inputs
+            broadcast to.
         """
         log_T = np.asarray(log_T)
         log_R = np.asarray(log_R)
@@ -311,7 +325,9 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
         bounded in density, so its reach falls as ``11 - 3 log10 T``, and
         ``11 - 3(3.75) = -0.25`` is the highest value it holds at every
         temperature below OPAL's floor. Passing ``cold="ferguson"`` reaches
-        +1.0 over 501 to 31,623 K. Below -8.0 no source has data.
+        +1.0 over 501 to 31,623 K. Below -8.0 only Semenov has data, and
+        Semenov stops at 10,000 K, so a range that far dilute must stay below
+        that. Its own floor is -24 below 1000 K and ``-1 - 3 log10 T`` above.
     hot_log_R_max : float, optional
         The hot table's density ceiling as ``log10 R``, which OPAL supports to
         1.0.

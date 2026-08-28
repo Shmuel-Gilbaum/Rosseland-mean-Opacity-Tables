@@ -129,15 +129,15 @@ def grid(log_T, log_R, X, Z):
     return out
 
 
-def kappa(rho, T, X, Z):
+def kappa(T, rho, X, Z):
     """Rosseland mean opacity in cm^2/g at one point, or 0 outside the tables.
 
     Parameters
     ----------
-    rho : float
-        Density, g/cm^3.
     T : float
         Temperature, K.
+    rho : float
+        Density, g/cm^3.
     X, Z : float
         Hydrogen and metal mass fractions.
 
