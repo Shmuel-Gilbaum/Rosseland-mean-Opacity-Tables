@@ -8,13 +8,14 @@
 A requested range outside what the chosen sources hold raises. Nothing is
 filled, held or extrapolated at build time.
 """
+import math
+
 import numpy as np
 
-from . import defaults
 from .coverage import _BY_NAME, CoverageError, covers, check_composition
 from .sources import ferguson, opal, semenov
 
-__all__ = ["Tables", "build", "load"]
+__all__ = ["Tables", "build"]
 
 RAMP = (3.75, 4.00)
 """Temperature window over which the cold source hands to OPAL, ``log10 T``.
@@ -281,63 +282,58 @@ class Tables:
                 f"{shape})")
 
 
-def load(path, fmt=None):
-    """Read a table pair written by `Tables.save`.
 
-    Parameters
-    ----------
-    path : str
-        The file. Its extension picks the format.
-    fmt : {'numpy', 'text', 'hdf5'}, optional
-        Overrides the extension.
-
-    Returns
-    -------
-    Tables
-    """
-    from .io import load as _load
-    return _load(path, fmt)
-
-
-def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
-          hot_log_R_max=None, n_T=None, n_R=None, split_log_T=None,
-          split=None, dataset=None, dXc=0.0, dXo=0.0):
+def build(X=0.7381, Z=0.0134, cold="semenov",
+          log_T_range=(math.log10(5.0), 7.1), log_R_range=(-8.0, -0.25),
+          hot_log_R_max=1.0, n_T=200, n_R=500, split_log_T=4.0, split=True,
+          dataset="GN93hz", dXc=0.0, dXo=0.0):
     """Build a cold and a hot opacity table at one composition.
 
     Parameters
     ----------
     X, Z : float, optional
-        Hydrogen and metal mass fractions. Helium is the remainder. Default:
-        `defaults.SOLAR_MASS_FRACTIONS`.
+        Hydrogen and metal mass fractions. Helium is the remainder.
     cold : {'semenov', 'ferguson'}, optional
-        Cold source. The two cold sources are never combined; see
-        `defaults.COLD`.
+        Cold source. The two are never combined. Semenov gives evaporation
+        temperatures and Ferguson gives condensation temperatures, so Semenov
+        suits material that is heating and Ferguson material that is cooling.
+        Ferguson reaches a higher density but stops at 501 K.
     log_T_range : tuple of float, optional
         Lowest and highest ``log10`` temperature in K. The hot table shares the
-        ceiling and starts at the ramp, ``log10 T = 3.75``. Default:
-        `defaults.LOG_T_RANGE`.
+        ceiling and starts at the ramp, ``log10 T = 3.75``. The floor 5 K is
+        Semenov's lowest tabulated temperature. The ceiling reaches
+        ``log10 T = 8.6999998``, the last value OPAL's axis holds; that axis is
+        stored in 32-bit floats, so 8.70 falls outside it.
     log_R_range : tuple of float, optional
         Lowest and highest ``log10 R`` of the cold table, where
         ``R = rho / (T / 1e6)**3`` in g/cm^3. The hot table shares the floor.
-        Default: `defaults.LOG_R_RANGE`.
+        The ceiling -0.25 is where Semenov's gas grid runs out: that grid is
+        bounded in density, so its reach falls as ``11 - 3 log10 T``, and
+        ``11 - 3(3.75) = -0.25`` is the highest value it holds at every
+        temperature below OPAL's floor. Passing ``cold="ferguson"`` reaches
+        +1.0 over 501 to 31,623 K. Below -8.0 no source has data.
     hot_log_R_max : float, optional
         The hot table's density ceiling as ``log10 R``, which OPAL supports to
-        1.0. Default: `defaults.HOT_LOG_R_MAX`.
+        1.0.
     n_T, n_R : int, optional
-        Grid points in temperature and in density parameter, in each table. The
-        resolution changes the table; see `defaults.N_T`.
+        Grid points in temperature and in density parameter, in each table.
+        The resolution changes the table: Semenov's dust destruction spans
+        192 K, which at 200 temperature points is two and a half grid cells, so
+        the tabulated cliff is gentler than the model's own. Every table records
+        the resolution it was built at, and two built at different resolutions
+        are not comparable. Raising it costs 9% per lookup at 400 temperature
+        points and 27% at 800.
     split_log_T : float, optional
         Temperature at which a lookup switches to the hot table, if there are
-        two, as ``log10 T``. Default: `defaults.SPLIT_LOG_T`.
+        two, as ``log10 T``. A lookup also takes the hot table wherever the
+        density parameter exceeds the cold table's ceiling.
     split : bool, optional
         Whether splitting into two grids is permitted. It is never forced: a
-        range one grid covers comes back as one grid either way. Default: True,
-        so a range needing the extra density height gets it. Pass False to
-        require a single grid and raise instead.
+        range one grid covers comes back as one grid either way. False
+        requires a single grid and raises instead.
     dataset : str, optional
         Which OPAL file supplies the hot opacity, from
-        `rm_tables.sources.opal.sets()`. Selects the metal mixture. Default:
-        `defaults.OPAL_SET`.
+        `rm_tables.sources.opal.sets()`. Selects the metal mixture.
     dXc, dXo : float, optional
         Carbon and oxygen mass fractions beyond those in `Z`. Must be a pair
         the chosen set tabulates; `rm_tables.sources.opal.excess()` lists them.
@@ -382,19 +378,12 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
     >>> float(round(kappa, 4))
     1.7427
     """
-    X0, _, Z0 = defaults.SOLAR_MASS_FRACTIONS
-    X = X0 if X is None else float(X)
-    Z = Z0 if Z is None else float(Z)
-    cold = defaults.COLD if cold is None else cold
-    log_T_range = defaults.LOG_T_RANGE if log_T_range is None else log_T_range
-    log_R_range = defaults.LOG_R_RANGE if log_R_range is None else log_R_range
-    hot_max = defaults.HOT_LOG_R_MAX if hot_log_R_max is None else hot_log_R_max
-    n_T = defaults.N_T if n_T is None else int(n_T)
-    n_R = defaults.N_R if n_R is None else int(n_R)
-    split_T = defaults.SPLIT_LOG_T if split_log_T is None else float(split_log_T)
-    may_split = True if split is None else bool(split)
+    X, Z = float(X), float(Z)
+    hot_max = float(hot_log_R_max)
+    n_T, n_R = int(n_T), int(n_R)
+    split_T = float(split_log_T)
+    may_split = bool(split)
     source = _COLD_SOURCES[cold]
-    dataset = defaults.OPAL_SET if dataset is None else dataset
     check_composition(X, Z, dataset)
 
     # A descending or zero-width axis silently breaks every lookup: the reader
@@ -435,7 +424,7 @@ def build(X=None, Z=None, cold=None, log_T_range=None, log_R_range=None,
         # The cold grid stops at the cold source's own ceiling; the hot grid,
         # OPAL alone, reaches further in density. Clip the cold grid rather than
         # refusing, since the hot grid covers what it gives up.
-        ceiling = min(log_R[-1], defaults.LOG_R_RANGE[1])
+        ceiling = min(log_R[-1], -0.25)
         if ceiling < log_R[-1]:
             log_R = np.linspace(log_R[0], ceiling, n_R)
         # The cold grid is assembled over the whole temperature range, not

@@ -7,7 +7,7 @@ from rm_tables.sources import semenov
 
 def test_the_reference_metallicity_reproduces_the_unmodified_routine():
     """The metallicity multiply must be invisible at the reference."""
-    from rm_tables.sources import _semenov_fit as f
+    import _semenov_reference as f
     eG = semenov._gas_grid()
     worst = 0.0
     for lt in np.linspace(0.7, 4.0, 60):

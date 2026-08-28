@@ -38,7 +38,8 @@ is a fifth-degree polynomial per temperature region, so no Fortran compiler is
 involved. The translation matches the compiled original to 1.776e-05 relative,
 which is that program's own printed precision. Its gas table ships unchanged.
 
-Any result that uses these tables should cite the papers above.
+A published result cites the papers above. Bibcodes and the rule for which
+ones apply are under [Citation](#citation).
 
 ## Install
 
@@ -119,8 +120,8 @@ t2 = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
 print(t2.cold.shape, t2.cold_log_T[0], t2.cold_log_R[-1])    # -> (300, 400) 2.0 -2.0
 ```
 
-`rm_tables.defaults` holds the value each argument falls back to, with the
-measurement that set it.
+Every argument's default is in the signature, and `help(rm_tables.build)`
+carries the measurement that set it.
 
 ## The rest of the interface
 
@@ -161,6 +162,32 @@ Full guide with runnable examples for all of it:
 - **The compiled routines.** They are cached next to the installed package.
   Where that location is not writable they recompile each session, about 1.3 s,
   and `NUMBA_CACHE_DIR` points them somewhere writable.
+
+## Citation
+
+A published result carries the hot source, the cold source in use, and this
+package.
+
+| what | reference | bibcode |
+| --- | --- | --- |
+| hot opacity, always | Iglesias & Rogers 1996, ApJ 464, 943 | [1996ApJ...464..943I](https://ui.adsabs.harvard.edu/abs/1996ApJ...464..943I/abstract) |
+| cold opacity, `cold="semenov"` | Semenov et al. 2003, A&A 410, 611 | [2003A&A...410..611S](https://ui.adsabs.harvard.edu/abs/2003A%26A...410..611S/abstract) |
+| cold opacity, `cold="ferguson"` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
+
+OPAL supplies every opacity above 5623 K, so it is cited whatever the cold
+source is. One cold source is read per call, and the `cold` argument names it.
+
+Two composition references apply where a result depends on the metal mixture
+rather than on the metal mass fraction alone. The default OPAL set `GN93hz` is
+at Grevesse & Noels 1993 ratios,
+[1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract);
+the other sets carry their own mixture, listed by
+`rm_tables.sources.opal.sets`. Semenov's coefficients are computed at Anders &
+Grevesse 1989,
+[1989GeCoA..53..197A](https://ui.adsabs.harvard.edu/abs/1989GeCoA..53..197A/abstract),
+which is the composition a requested metallicity is scaled from.
+
+ADS exports BibTeX from any of these bibcodes.
 
 ## Licence
 

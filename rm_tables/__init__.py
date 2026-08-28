@@ -15,11 +15,16 @@ tabulates.
 do not hold. A callable from `opacity` raises it for a temperature no source
 reaches, and holds the nearest value it has in density. `CoverageError`
 subclasses `ValueError`.
+
+The three source papers, their ADS bibcodes, and the rule for which of them a
+given result cites are listed under Citation in the README, and in
+`CITATION.cff` beside it.
 """
 
-from . import coverage, defaults
+from . import coverage
 from .lookup import opacity
-from .tables import build, load
+from .io import load
+from .tables import build
 
 __all__ = ["opacity", "build", "load"]
 __version__ = "0.1.0"

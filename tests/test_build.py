@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 from rm_tables import tables as B
-from rm_tables import defaults
 from rm_tables.coverage import CoverageError
 
 

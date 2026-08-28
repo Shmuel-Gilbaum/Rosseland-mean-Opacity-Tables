@@ -8,8 +8,9 @@ import numpy as np
 import pytest
 
 from rm_tables.sources import _compiled as K
-from rm_tables.sources import _semenov_fit as F
 from rm_tables.sources import semenov
+
+import _semenov_reference as F
 
 
 def test_the_compiled_semenov_is_bit_identical_to_the_port():

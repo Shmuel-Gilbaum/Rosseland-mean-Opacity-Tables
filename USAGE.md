@@ -258,9 +258,8 @@ comparable, so every table records the resolution it was built at.
 print(t.provenance["n_T"], t.provenance["n_R"])    # -> 200 500
 ```
 
-`help(rm_tables.build)` documents all thirteen arguments and
-`rm_tables.defaults` holds the value each falls back to, with the measurement
-that set it.
+`help(rm_tables.build)` documents all thirteen arguments, the value each falls
+back to, and the measurement that set it.
 
 ## The pair of grids
 
@@ -394,3 +393,27 @@ session, and the result is cached on disk beside the installed package.
 Where that location is not writable, `NUMBA_CACHE_DIR` points them somewhere
 that is. Without it the routines recompile each session and nothing else
 changes.
+
+## Citation
+
+The hot opacity always comes from OPAL, and the cold opacity from whichever
+source `cold` names. A published result cites both, and this package.
+
+| what | reference | bibcode |
+| --- | --- | --- |
+| hot opacity, always | Iglesias & Rogers 1996, ApJ 464, 943 | [1996ApJ...464..943I](https://ui.adsabs.harvard.edu/abs/1996ApJ...464..943I/abstract) |
+| cold opacity, `cold="semenov"` | Semenov et al. 2003, A&A 410, 611 | [2003A&A...410..611S](https://ui.adsabs.harvard.edu/abs/2003A%26A...410..611S/abstract) |
+| cold opacity, `cold="ferguson"` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
+
+A result that depends on the metal mixture rather than on the metal mass
+fraction alone carries one more. The default OPAL set `GN93hz` is at Grevesse
+& Noels 1993 ratios,
+[1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract).
+The mixtures behind the other sets are named in the docstring of
+`rm_tables.sources.opal.sets`. Semenov's coefficients are computed at Anders &
+Grevesse 1989,
+[1989GeCoA..53..197A](https://ui.adsabs.harvard.edu/abs/1989GeCoA..53..197A/abstract),
+and a requested metallicity is scaled from that composition.
+
+`CITATION.cff` in the repository root carries the same list in machine-readable
+form, and ADS exports BibTeX from any of these bibcodes.

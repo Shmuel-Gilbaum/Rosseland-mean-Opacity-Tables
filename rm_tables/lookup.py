@@ -17,7 +17,6 @@ ns through OPAL.
 import numpy as np
 from numba import njit as _njit
 
-from . import defaults
 from .coverage import _BY_NAME, CoverageError, check_composition
 from .sources import _compiled as _c
 from .sources import ferguson, opal, semenov
@@ -263,20 +262,21 @@ class Opacity:
         return f"Opacity(X={p['X']:.4f}, Z={p['Z']:.4f}, cold={p['cold']!r})"
 
 
-def opacity(X=None, Z=None, cold=None, dataset=None, dXc=0.0, dXo=0.0):
+def opacity(X=0.7381, Z=0.0134, cold="semenov", dataset="GN93hz",
+            dXc=0.0, dXo=0.0):
     """Build a callable opacity at one composition.
 
     Parameters
     ----------
     X, Z : float, optional
-        Hydrogen and metal mass fractions. Helium is the remainder. Default:
-        `defaults.SOLAR_MASS_FRACTIONS`.
+        Hydrogen and metal mass fractions. Helium is the remainder.
     cold : {'semenov', 'ferguson'}, optional
-        Cold source. Default: `defaults.COLD`.
+        Cold source. Semenov gives evaporation temperatures and Ferguson
+        gives condensation temperatures, so Semenov suits material that is
+        heating and Ferguson material that is cooling.
     dataset : str, optional
         Which OPAL file supplies the hot opacity, from
-        `rm_tables.sources.opal.sets()`. Selects the metal mixture. Default:
-        `defaults.OPAL_SET`.
+        `rm_tables.sources.opal.sets()`. Selects the metal mixture.
     dXc, dXo : float, optional
         Carbon and oxygen mass fractions beyond those in `Z`. Must be a pair
         the chosen set tabulates; `rm_tables.sources.opal.excess()` lists them.
@@ -301,11 +301,7 @@ def opacity(X=None, Z=None, cold=None, dataset=None, dXc=0.0, dXo=0.0):
     >>> np.round(kappa(T, rho), 5)
     array([1.75354e+00, 6.00000e-05, 4.46020e-01])
     """
-    X0, _, Z0 = defaults.SOLAR_MASS_FRACTIONS
-    X = X0 if X is None else float(X)
-    Z = Z0 if Z is None else float(Z)
-    cold = defaults.COLD if cold is None else cold
-    dataset = defaults.OPAL_SET if dataset is None else dataset
+    X, Z = float(X), float(Z)
     check_composition(X, Z, dataset)
     if cold not in ("semenov", "ferguson"):
         raise KeyError(f"unknown cold source {cold!r}. "

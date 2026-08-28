@@ -1,0 +1,118 @@
+cff-version: 1.2.0
+message: >-
+  Cite the opacity papers this package reads, listed under references below.
+title: rm-tables
+abstract: >-
+  Rosseland mean opacity from published data, at a requested composition,
+  as a callable or as a built table.
+type: software
+authors:
+  - family-names: Gilbaum
+    given-names: Shmuel
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables"
+
+references:
+  - type: article
+    title: Updated OPAL Opacities
+    authors:
+      - family-names: Iglesias
+        given-names: Carlos A.
+      - family-names: Rogers
+        given-names: Forrest J.
+    year: 1996
+    journal: The Astrophysical Journal
+    volume: 464
+    start: 943
+    identifiers:
+      - type: other
+        value: "1996ApJ...464..943I"
+        description: ADS bibcode
+    notes: Hot opacity above 5623 K. Cited whichever cold source is in use.
+
+  - type: article
+    title: Rosseland and Planck mean opacities for protoplanetary discs
+    authors:
+      - family-names: Semenov
+        given-names: Dmitry A.
+      - family-names: Henning
+        given-names: Thomas
+      - family-names: Helling
+        given-names: Christiane
+      - family-names: Ilgner
+        given-names: Martin
+      - family-names: Sedlmayr
+        given-names: Erwin
+    year: 2003
+    journal: Astronomy and Astrophysics
+    volume: 410
+    start: 611
+    end: 621
+    identifiers:
+      - type: other
+        value: "2003A&A...410..611S"
+        description: ADS bibcode
+    notes: Cold opacity when cold="semenov", which is the default.
+
+  - type: article
+    title: Low-Temperature Opacities
+    authors:
+      - family-names: Ferguson
+        given-names: Jason W.
+      - family-names: Alexander
+        given-names: David R.
+      - family-names: Allard
+        given-names: France
+      - family-names: Barman
+        given-names: Travis
+      - family-names: Bodnarik
+        given-names: Julia G.
+      - family-names: Hauschildt
+        given-names: Peter H.
+      - family-names: Heffner-Wong
+        given-names: Amanda
+      - family-names: Tamanai
+        given-names: Akemi
+    year: 2005
+    journal: The Astrophysical Journal
+    volume: 623
+    start: 585
+    identifiers:
+      - type: other
+        value: "2005ApJ...623..585F"
+        description: ADS bibcode
+    notes: Cold opacity when cold="ferguson".
+
+  - type: conference-paper
+    title: Cosmic abundances of the elements
+    authors:
+      - family-names: Grevesse
+        given-names: N.
+      - family-names: Noels
+        given-names: A.
+    year: 1993
+    collection-title: Origin and Evolution of the Elements
+    start: 15
+    identifiers:
+      - type: other
+        value: "1993oee..conf...15G"
+        description: ADS bibcode
+    notes: Metal ratios of the default OPAL set GN93hz.
+
+  - type: article
+    title: "Abundances of the elements: Meteoritic and solar"
+    authors:
+      - family-names: Anders
+        given-names: Edward
+      - family-names: Grevesse
+        given-names: Nicolas
+    year: 1989
+    journal: Geochimica et Cosmochimica Acta
+    volume: 53
+    start: 197
+    identifiers:
+      - type: other
+        value: "1989GeCoA..53..197A"
+        description: ADS bibcode
+    notes: Composition Semenov's coefficients are computed at.

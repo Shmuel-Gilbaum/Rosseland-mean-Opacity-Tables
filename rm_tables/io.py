@@ -9,6 +9,7 @@ Three formats, chosen by the file extension:
 Each carries the provenance alongside the numbers, so a file found later can be
 traced to the papers and the settings that produced it.
 """
+import ast
 import json
 import os
 
@@ -25,14 +26,13 @@ _HOT = ("hot_log_T", "hot_log_R", "hot")
 _ARRAYS = _COLD + _HOT
 
 
-_KINDS = ("numpy", "text", "hdf5")
-
 
 def _format_of(path, fmt=None):
     if fmt is not None:
-        if fmt not in _KINDS:
+        if fmt not in set(FORMATS.values()):
             raise ValueError(
-                f"unknown format {fmt!r}. Use one of {list(_KINDS)}.")
+                f"unknown format {fmt!r}. Use one of "
+                f"{sorted(set(FORMATS.values()))}.")
         return fmt
     ext = os.path.splitext(path)[1].lower()
     if ext not in FORMATS:
@@ -107,16 +107,12 @@ def _save_npz(t, path):
     # exactly that, so 'T.NPZ' became 'T.NPZ.npz' and load could not find it.
     # Writing through an open handle takes the filename as given.
     with open(path, "wb") as fh:
-        _write_npz(fh, t, names)
-
-
-def _write_npz(fh, t, names):
-    np.savez_compressed(
-        fh, split_log_T=np.array([t.split_log_T]),
-        is_split=np.array([t.is_split]),
-        provenance=np.array([json.dumps(t.provenance)]),
-        **{n: (getattr(t, n).astype(np.float32) if n in ("cold", "hot")
-               else getattr(t, n)) for n in names})
+        np.savez_compressed(
+            fh, split_log_T=np.array([t.split_log_T]),
+            is_split=np.array([t.is_split]),
+            provenance=np.array([json.dumps(t.provenance)]),
+            **{n: (getattr(t, n).astype(np.float32) if n in ("cold", "hot")
+                   else getattr(t, n)) for n in names})
 
 
 def _load_npz(path):
@@ -214,17 +210,11 @@ def _load_text(path):
 
 
 def _coerce(v):
-    """Text back to the type it was written from."""
-    if v in ("True", "False"):
-        return v == "True"
-    for cast in (int, float):
-        try:
-            return cast(v)
-        except ValueError:
-            pass
-    if v.startswith("(") and v.endswith(")"):
-        return tuple(_coerce(p.strip()) for p in v[1:-1].split(",") if p.strip())
-    return v
+    """Text back to the type it was written from, or left as text."""
+    try:
+        return ast.literal_eval(v)
+    except (ValueError, SyntaxError):
+        return v
 
 
 # --- HDF5 -------------------------------------------------------------------

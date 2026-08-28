@@ -36,8 +36,10 @@ def test_both_entry_points_refuse_an_impossible_composition(name, fn, X, Z, why)
 def test_the_solar_default_is_accepted():
     """A guard that refuses the default would be caught by everything else, but
     state it anyway so the boundary is pinned from both sides."""
-    X, _, Z = rm_tables.defaults.SOLAR_MASS_FRACTIONS
-    check_composition(X, Z, rm_tables.defaults.OPAL_SET)
+    import inspect
+    d = {p.name: p.default
+         for p in inspect.signature(rm_tables.opacity).parameters.values()}
+    check_composition(d["X"], d["Z"], d["dataset"])
 
 
 def test_the_tabulated_corners_are_inside_not_outside():
