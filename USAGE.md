@@ -211,7 +211,7 @@ def kappa(T, rho):
     y = np.empty(1)
     x[0] = np.log10(T)
     y[0] = np.log10(rho / (T * 1e-6) ** 3)
-    # `Tables.which`, inlined: numba cannot call the method.
+    # `Tables.is_hot`, inlined: numba cannot call the method.
     if x[0] >= split or (y[0] > cold_r_max and x[0] >= hot_t_min):
         return 10.0 ** bispeu(x, y, htx, hty, hc, hkx, hky)[0]
     return 10.0 ** bispeu(x, y, ctx, cty, cc, ckx, cky)[0]
@@ -302,7 +302,7 @@ print(pair.kappa(np.array([3e3, 1e5]), np.array([1e-14, 1e-16])))
 ```
 
 Fitting a smoother interpolant means fitting one per grid and choosing between
-them with `Tables.which`, which answers `True` where the hot grid holds the
+them with `Tables.is_hot`, which answers `True` where the hot grid holds the
 point. A point denser than the cold grid reaches goes to the hot grid only
 where the hot grid holds its temperature, which starts at 5623 K. Below that
 the cold grid answers and holds its density edge. Over 200 temperatures from

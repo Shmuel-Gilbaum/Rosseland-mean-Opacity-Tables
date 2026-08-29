@@ -201,6 +201,6 @@ The data it redistributes carries its own terms.
 Semenov's source grants free use, modification and redistribution, quoted at the
 top of `rm_tables/sources/_semenov_fit.py` with its copyright line.
 
-No licence statement was found for the OPAL data. It is distributed publicly and
-without registration, and this package redistributes its Type-1 tables. Anyone
-republishing that data should confirm the terms independently.
+No licence statement was found for the OPAL or Ferguson data. Both are
+distributed publicly and without registration, and this package redistributes
+them. Anyone republishing that data should confirm the terms independently.
