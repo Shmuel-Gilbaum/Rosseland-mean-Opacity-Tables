@@ -3,7 +3,7 @@ name: Publish to PyPI
 # Create a GitHub release to publish. Nothing runs on an ordinary push.
 #
 #   1. bump the version in pyproject.toml AND rm_tables/__init__.py
-#   2. tag and push:  git tag v0.1.0 && git push origin v0.1.0
+#   2. tag and push:  git tag v0.1.1 && git push origin v0.1.1
 #   3. draft a release on that tag and publish it
 #
 # The build job gates the upload: tests, both version checks and the wheel
