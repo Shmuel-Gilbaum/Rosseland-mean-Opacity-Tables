@@ -34,11 +34,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[test]"
 
-      - name: Unit tests, and every docstring example
+      - name: Unit tests, every docstring example, and the README and usage
+        # `testpaths` covers tests/ and rm_tables/, so tests/test_examples.py,
+        # which runs the README and usage-guide code blocks, is already in here.
         run: python -m pytest -q
-
-      - name: The README and the usage guide examples must run
-        run: python -m pytest tests/test_examples.py -q
 
       - name: The version must agree with itself
         run: |

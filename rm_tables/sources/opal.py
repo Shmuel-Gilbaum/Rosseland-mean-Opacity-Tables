@@ -131,15 +131,6 @@ def excess(opal_set=DEFAULT_OPAL_SET):
     return _co(opal_set)
 
 
-def _bracket(values, target):
-    """Index of the lower bracketing node and the weight of the upper one."""
-    if values.size < 2:
-        return 0, 0.0
-    i = int(np.clip(np.searchsorted(values, target) - 1, 0, values.size - 2))
-    span = values[i + 1] - values[i]
-    return i, 0.0 if span == 0 else (target - values[i]) / span
-
-
 def table_at(X, Z, z_floor=1e-4, opal_set=DEFAULT_OPAL_SET, dXc=0.0, dXo=0.0):
     """``log10`` opacity at one composition, on OPAL's own axes.
 
@@ -222,19 +213,4 @@ def grid(log_T, log_R, X, Z, opal_set=DEFAULT_OPAL_SET, dXc=0.0, dXo=0.0):
     """
     own_T, own_R = axes()
     block = table_at(X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
-    log_T = np.ravel(log_T)
-    log_R = np.ravel(log_R)
-
-    on_T = np.empty((log_T.size, own_R.size))
-    inside_T = (log_T >= own_T[0]) & (log_T <= own_T[-1])
-    for j in range(own_R.size):
-        col = block[:, j]
-        g = np.isfinite(col)
-        on_T[:, j] = np.where(inside_T,
-                              np.interp(log_T, own_T[g], col[g]), np.nan)
-
-    out = np.empty((log_T.size, log_R.size))
-    inside_R = (log_R >= own_R[0]) & (log_R <= own_R[-1])
-    for i in range(log_T.size):
-        out[i] = np.where(inside_R, np.interp(log_R, own_R, on_T[i]), np.nan)
-    return out
+    return _composition.on_axes(own_T, own_R, block, log_T, log_R)

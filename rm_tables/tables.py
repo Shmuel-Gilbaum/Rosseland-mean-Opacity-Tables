@@ -172,7 +172,7 @@ class Tables:
         """``True`` when this holds two grids, ``False`` when one covers it."""
         return self.hot is not None
 
-    def which(self, log_T, log_R):
+    def is_hot(self, log_T, log_R):
         """``True`` where the hot table answers, ``False`` where the cold does.
 
         Always ``False`` on a single table, since one grid covers everything.
@@ -257,7 +257,7 @@ class Tables:
         log_T = np.log10(T)
         log_R = np.log10(rho / (T / 1e6) ** 3)
         out = np.empty(log_T.shape)
-        hot = np.asarray(self.which(log_T, log_R))
+        hot = np.asarray(self.is_hot(log_T, log_R))
         pieces = [(~hot, self.cold_log_T, self.cold_log_R, self.cold)]
         if self.is_split:
             pieces.append((hot, self.hot_log_T, self.hot_log_R, self.hot))
@@ -387,9 +387,9 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     >>> float(t.cold_log_R[-1]), float(t.hot_log_R[-1])
     (-0.25, 1.0)
 
-    `Tables.which` picks the table for a point, by temperature or by density.
+    `Tables.is_hot` picks the table for a point, by temperature or by density.
 
-    >>> bool(t.which(5.0, 0.5))
+    >>> bool(t.is_hot(5.0, 0.5))
     True
 
     Reading the opacity at 500 K and ``log10 R = -6``, in the dust regime.

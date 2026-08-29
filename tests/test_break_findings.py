@@ -82,8 +82,8 @@ def test_a_cool_dense_point_does_not_get_an_ionised_gas_opacity():
 def test_the_hot_grid_still_answers_where_it_should():
     """The fix must not send hot points to the cold grid."""
     t = rm_tables.build(n_T=60, n_R=40)
-    assert bool(t.which(5.0, -13.0))
-    assert bool(t.which(np.log10(2e4), 0.5))
+    assert bool(t.is_hot(5.0, -13.0))
+    assert bool(t.is_hot(np.log10(2e4), 0.5))
 
 
 def test_a_single_grid_prints_and_reads():

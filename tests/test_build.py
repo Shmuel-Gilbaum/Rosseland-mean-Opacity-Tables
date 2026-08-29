@@ -23,9 +23,9 @@ def test_the_hot_table_reaches_a_density_the_cold_one_cannot(tables):
 
 
 def test_the_selection_rule_sends_hot_and_dense_points_to_the_hot_table(tables):
-    assert tables.which(5.0, -4.0)                # hot by temperature
-    assert tables.which(3.9, 0.5)                 # hot by density
-    assert not tables.which(2.0, -4.0)            # cold
+    assert tables.is_hot(5.0, -4.0)                # hot by temperature
+    assert tables.is_hot(3.9, 0.5)                 # hot by density
+    assert not tables.is_hot(2.0, -4.0)            # cold
 
 
 def test_the_two_tables_agree_where_they_overlap(tables):
@@ -80,8 +80,8 @@ def test_a_range_inside_one_region_is_one_grid_even_when_splitting_is_allowed():
 def test_a_single_grid_reports_that_every_point_is_its_own():
     t = B.build(n_T=40, n_R=25, allow_split=False)
     assert not t.is_split
-    assert bool(t.which(5.0, 0.5)) is False
-    assert t.which(np.array([2.0, 6.0]), -4.0).tolist() == [False, False]
+    assert bool(t.is_hot(5.0, 0.5)) is False
+    assert t.is_hot(np.array([2.0, 6.0]), -4.0).tolist() == [False, False]
 
 
 def test_asking_below_semenovs_floor_raises():

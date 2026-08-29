@@ -312,8 +312,8 @@ dex.
 
 ```python
 cool, warm = np.log10(3000.0), np.log10(2e4)
-print(pair.which(cool, -6.0), pair.which(cool, 0.5))    # -> False False
-print(pair.which(warm, 0.5), pair.which(5.0, -13.0))    # -> True True
+print(pair.is_hot(cool, -6.0), pair.is_hot(cool, 0.5))    # -> False False
+print(pair.is_hot(warm, 0.5), pair.is_hot(5.0, -13.0))    # -> True True
 ```
 
 `Tables.split_log_T` is the temperature it switches at, 4.0 in `log10` by

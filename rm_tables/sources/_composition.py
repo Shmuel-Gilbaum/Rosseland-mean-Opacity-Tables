@@ -1,4 +1,4 @@
-"""Interpolating a ragged composition grid, shared by OPAL and Ferguson.
+"""Interpolation shared by OPAL and Ferguson: composition, then axes.
 
 Both sources tabulate a SET of composition pairs rather than a rectangle. Above
 a hydrogen mass fraction of 0.9 most columns hold a single table, and it is the
@@ -11,10 +11,14 @@ interpolable neighbours bracket.
 So a column joins the interpolation only where it holds the requested
 metallicity between two of its own nodes. An exactly tabulated pair is taken as
 it stands. Anything else raises.
+
+`on_axes` is the other half: once a table is chosen, both sources put it on
+requested temperature and density axes the same way, holding no value outside
+their own rectangle.
 """
 import numpy as np
 
-__all__ = ["interpolate", "CompositionError"]
+__all__ = ["interpolate", "on_axes", "CompositionError"]
 
 _TOL = 1e-6
 """Match tolerance for an exactly tabulated pair, absolute in mass fraction.
@@ -112,3 +116,29 @@ def interpolate(Xs, Zs, K, X, Z, z_floor, source):
 
 def _nearest(values, target):
     return float(values[int(np.argmin(np.abs(values - target)))])
+
+
+def on_axes(own_T, own_R, block, log_T, log_R):
+    """`block`, tabulated on `own_T` by `own_R`, on the requested axes.
+
+    Interpolates in temperature and in density parameter separately and never
+    extrapolates: a point outside the tabulated rectangle comes back NaN. A
+    blank INSIDE it does not, because the temperature interpolation runs
+    through the blanks and holds the last tabulated value past them.
+    """
+    log_T = np.ravel(log_T)
+    log_R = np.ravel(log_R)
+
+    on_T = np.empty((log_T.size, own_R.size))
+    inside_T = (log_T >= own_T[0]) & (log_T <= own_T[-1])
+    for j in range(own_R.size):
+        col = block[:, j]
+        g = np.isfinite(col)
+        on_T[:, j] = np.where(inside_T,
+                              np.interp(log_T, own_T[g], col[g]), np.nan)
+
+    out = np.empty((log_T.size, log_R.size))
+    inside_R = (log_R >= own_R[0]) & (log_R <= own_R[-1])
+    for i in range(log_T.size):
+        out[i] = np.where(inside_R, np.interp(log_R, own_R, on_T[i]), np.nan)
+    return out

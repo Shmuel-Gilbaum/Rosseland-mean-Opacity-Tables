@@ -113,20 +113,7 @@ def grid(log_T, log_R, X, Z):
     """
     own_T, own_R = axes()
     block = table_at(X, Z)
-    log_T = np.ravel(log_T)
-    log_R = np.ravel(log_R)
-
-    inside_T = (log_T >= own_T[0]) & (log_T <= own_T[-1])
-    on_T = np.empty((log_T.size, own_R.size))
-    for j in range(own_R.size):
-        on_T[:, j] = np.where(inside_T,
-                              np.interp(log_T, own_T, block[:, j]), np.nan)
-
-    inside_R = (log_R >= own_R[0]) & (log_R <= own_R[-1])
-    out = np.empty((log_T.size, log_R.size))
-    for i in range(log_T.size):
-        out[i] = np.where(inside_R, np.interp(log_R, own_R, on_T[i]), np.nan)
-    return out
+    return _composition.on_axes(own_T, own_R, block, log_T, log_R)
 
 
 def kappa(T, rho, X, Z):

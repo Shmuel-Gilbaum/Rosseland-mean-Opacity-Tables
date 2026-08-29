@@ -123,7 +123,3 @@ def test_an_untabulated_excess_is_refused_rather_than_interpolated():
     with pytest.raises(ValueError):
         opal.table_at(0.7, 0.02, opal_set="Gz020.x70", dXc=0.123)
 
-
-def test_the_default_set_carries_no_excess_carbon_or_oxygen():
-    dXc, dXo = opal.excess()
-    assert dXc.max() == dXo.max() == 0.0

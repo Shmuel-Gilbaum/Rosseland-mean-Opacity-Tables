@@ -16,6 +16,7 @@ import os
 
 import numpy as np
 
+from . import _compiled as _c
 from . import _semenov_fit as _f
 
 __all__ = ["kappa", "grid", "REFERENCE_Z", "CONDENSED_FRACTION", "REFERENCE"]
@@ -69,38 +70,8 @@ def kappa(T, rho, Z=REFERENCE_Z):
         Opacity in cm^2/g, or 0.0 outside the model's range. A zero is not a
         small opacity; it means this source has no answer there.
     """
-    dust_coeffs, gas_grid = _f.eR, _gas_grid()
-    z_scale = max(Z, 1e-12) / REFERENCE_Z
-    if T < 1.0:
-        return 0.0
-    T_ev = [_f._bint(rho, _f.RO_EV, _f.TT[i]) for i in range(4)]
-    edges = [T_ev[0], 275.0, 425.0, 680.0,
-             min(max(T_ev[1], T_ev[2]), max(T_ev[2], T_ev[3]))]
-    widths = [5.0, 5.0, 15.0, 5.0, 100.0]
-
-    region = 5                                   # 5 means the gas grid
-    if T <= edges[0] + widths[0]:
-        region = 0
-    for k in range(1, 5):
-        if edges[k - 1] + widths[k - 1] < T <= edges[k] + widths[k]:
-            region = k
-
-    if region == 5:
-        return _f.gop(gas_grid, rho, T)                # pure gas, never scaled
-
-    blended = any(abs(T - edges[i]) <= widths[i] for i in range(5))
-    if not blended:
-        return z_scale * np.polyval(dust_coeffs[region][::-1], T)     # pure dust, scaled
-
-    lo = edges[region] - widths[region]
-    hi = edges[region] + widths[region]
-    left = z_scale * np.polyval(dust_coeffs[region][::-1], lo)        # dust side, scaled
-    if region == 4:
-        right = _f.gop(gas_grid, rho, hi)                       # gas side, not scaled
-    else:
-        right = z_scale * np.polyval(dust_coeffs[region + 1][::-1], hi)
-    amp, mid = 0.5 * (left - right), 0.5 * (left + right)
-    return mid - amp * np.sin(np.pi / 2.0 / widths[region] * (T - edges[region]))
+    return _c.semenov_kappa(_c.DUST_COEFFS_HI_FIRST, _gas_grid(), rho, T,
+                            max(Z, 1e-12) / REFERENCE_Z)
 
 
 def grid(log_T, log_R, Z=REFERENCE_Z):
