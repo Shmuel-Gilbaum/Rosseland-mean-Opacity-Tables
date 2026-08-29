@@ -19,7 +19,7 @@ def test_the_compiled_form_gives_the_same_numbers(cold):
     Both read the same tables by the same arithmetic, so both must give the
     same numbers exactly."""
     k = rm_tables.opacity(cold=cold)
-    kc = k.compiled()
+    kc = k.as_compiled()
     floor = 10.0 ** rm_tables.coverage._BY_NAME[cold].log_T[0]
     T = 10.0 ** np.linspace(np.log10(floor * 1.01), 6.5, 60)
     rho = 10.0 ** np.linspace(-18.0, -7.0, 60) * (T / 1e6) ** 3
@@ -31,7 +31,7 @@ def test_the_compiled_form_gives_the_same_numbers(cold):
 @pytest.mark.parametrize("cold", COLD)
 def test_it_is_callable_from_inside_a_compiled_function(cold):
     """The whole point. Calling the object itself here fails to compile."""
-    kappa = rm_tables.opacity(cold=cold).compiled()
+    kappa = rm_tables.opacity(cold=cold).as_compiled()
 
     @njit
     def optical_depth(T, rho, height):
@@ -57,7 +57,7 @@ def test_a_compiled_loop_gives_the_same_answer_as_the_array_call():
     """Reading many points at once and reading them one at a time must not
     drift apart."""
     k = rm_tables.opacity()
-    kappa = k.compiled()
+    kappa = k.as_compiled()
 
     @njit
     def sweep(Ts, rhos, out):
@@ -83,4 +83,4 @@ def test_the_compiled_form_refuses_what_the_object_refuses(cold, T, rho):
     k = rm_tables.opacity(cold=cold)
     with pytest.raises(rm_tables.coverage.CoverageError):
         k(T, rho)
-    assert np.isnan(k.compiled()(T, rho))
+    assert np.isnan(k.as_compiled()(T, rho))

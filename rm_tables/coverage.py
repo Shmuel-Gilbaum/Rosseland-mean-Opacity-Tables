@@ -160,7 +160,7 @@ def covers(sources, log_T, log_R, what="the requested range"):
         f"log10 R = {bad_R:.3f}.{hint}")
 
 
-def check_composition(X, Z, dataset):
+def check_composition(X, Z, opal_set):
     """Refuse a composition the physics or the tables cannot hold.
 
     Parameters
@@ -169,7 +169,7 @@ def check_composition(X, Z, dataset):
         Hydrogen mass fraction.
     Z : float
         Metal mass fraction.
-    dataset : str
+    opal_set : str
         The OPAL set the hot opacity comes from, from
         `rm_tables.sources.opal.sets`.
 
@@ -197,7 +197,7 @@ def check_composition(X, Z, dataset):
         raise CoverageError(
             f"X={X:g} and Z={Z:g} leave helium at {1.0 - X - Z:g}. "
             f"Helium is the remainder, so X + Z cannot exceed 1.")
-    xs, zs = opal.compositions(dataset)
+    xs, zs = opal.compositions(opal_set)
     x_hi, z_hi = float(np.max(xs)), float(np.max(zs))
     x_lo = float(np.min(xs))
     # The tabulated fractions are stored in 32-bit floats, so 0.7 reads back as
@@ -206,11 +206,11 @@ def check_composition(X, Z, dataset):
     Xc, Zc = float(np.float32(X)), float(np.float32(Z))
     if not x_lo <= Xc <= x_hi:
         raise CoverageError(
-            f"set {dataset!r} tabulates hydrogen from {x_lo:g} to {x_hi:g}, "
+            f"set {opal_set!r} tabulates hydrogen from {x_lo:g} to {x_hi:g}, "
             f"and X={X:g} was requested."
             + (f" That set holds one hydrogen fraction only."
                if x_lo == x_hi else ""))
     if Zc > z_hi:
         raise CoverageError(
-            f"set {dataset!r} tabulates metals up to {z_hi:g}, and Z={Z:g} "
+            f"set {opal_set!r} tabulates metals up to {z_hi:g}, and Z={Z:g} "
             f"was requested. rm_tables.sources.opal.sets() lists the others.")

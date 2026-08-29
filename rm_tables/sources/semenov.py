@@ -69,8 +69,8 @@ def kappa(T, rho, Z=REFERENCE_Z):
         Opacity in cm^2/g, or 0.0 outside the model's range. A zero is not a
         small opacity; it means this source has no answer there.
     """
-    eD, eG = _f.eR, _gas_grid()
-    zfac = max(Z, 1e-12) / REFERENCE_Z
+    dust_coeffs, gas_grid = _f.eR, _gas_grid()
+    z_scale = max(Z, 1e-12) / REFERENCE_Z
     if T < 1.0:
         return 0.0
     T_ev = [_f._bint(rho, _f.RO_EV, _f.TT[i]) for i in range(4)]
@@ -86,19 +86,19 @@ def kappa(T, rho, Z=REFERENCE_Z):
             region = k
 
     if region == 5:
-        return _f.gop(eG, rho, T)                # pure gas, never scaled
+        return _f.gop(gas_grid, rho, T)                # pure gas, never scaled
 
     blended = any(abs(T - edges[i]) <= widths[i] for i in range(5))
     if not blended:
-        return zfac * np.polyval(eD[region][::-1], T)     # pure dust, scaled
+        return z_scale * np.polyval(dust_coeffs[region][::-1], T)     # pure dust, scaled
 
     lo = edges[region] - widths[region]
     hi = edges[region] + widths[region]
-    left = zfac * np.polyval(eD[region][::-1], lo)        # dust side, scaled
+    left = z_scale * np.polyval(dust_coeffs[region][::-1], lo)        # dust side, scaled
     if region == 4:
-        right = _f.gop(eG, rho, hi)                       # gas side, not scaled
+        right = _f.gop(gas_grid, rho, hi)                       # gas side, not scaled
     else:
-        right = zfac * np.polyval(eD[region + 1][::-1], hi)
+        right = z_scale * np.polyval(dust_coeffs[region + 1][::-1], hi)
     amp, mid = 0.5 * (left - right), 0.5 * (left + right)
     return mid - amp * np.sin(np.pi / 2.0 / widths[region] * (T - edges[region]))
 

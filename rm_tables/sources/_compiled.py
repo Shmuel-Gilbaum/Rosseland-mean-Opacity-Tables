@@ -15,7 +15,7 @@ from numba import njit
 
 from . import _semenov_fit as _f
 
-__all__ = ["semenov_kappa", "bilinear", "ED_HI_FIRST", "cached_njit"]
+__all__ = ["semenov_kappa", "bilinear", "DUST_COEFFS_HI_FIRST", "cached_njit"]
 
 
 def cached_njit(fn):
@@ -33,7 +33,7 @@ def cached_njit(fn):
 
 # numba has no ``np.polyval`` and reversed-stride slicing is awkward inside it.
 # Reversing the coefficients once here means the compiled code needs neither.
-ED_HI_FIRST = np.ascontiguousarray(_f.eR[:, ::-1])
+DUST_COEFFS_HI_FIRST = np.ascontiguousarray(_f.eR[:, ::-1])
 _RO_EV = np.ascontiguousarray(_f.RO_EV)
 _TT = np.ascontiguousarray(_f.TT)
 _RHO_G = np.ascontiguousarray(_f.RHO_G)
@@ -107,11 +107,11 @@ def _eint(X, Y, Dm, XP, YP):
 
 
 @cached_njit
-def _gop(eG, rho, T):
+def _gop(gas_grid, rho, T):
     """Gas opacity, 0 outside the grid's own bounds."""
     if rho > 1.0e-7 or rho < 1.0e-19 or T < 500.0 or T > 10000.0:
         return 0.0
-    return 10.0 ** _eint(_RHO_G, _T_G, eG, rho, T)
+    return 10.0 ** _eint(_RHO_G, _T_G, gas_grid, rho, T)
 
 
 GAS_RHO_MIN = 1.0e-19
@@ -125,28 +125,28 @@ the opacity vanishes.
 
 
 @cached_njit
-def semenov_kappa_held(eD, eG, rho, T_in, zfac):
+def semenov_kappa_held(dust_coeffs, gas_grid, rho, T_in, z_scale):
     """`semenov_kappa`, holding the nearest valid density instead of returning 0.
 
     Outside the gas grid's density bounds the routine reports no value as a
     zero. This evaluates at the nearest bound instead, which is what a
     tabulated grid does outside its own span.
     """
-    v = semenov_kappa(eD, eG, rho, T_in, zfac)
+    v = semenov_kappa(dust_coeffs, gas_grid, rho, T_in, z_scale)
     if v > 0.0:
         return v
     held = min(max(rho, GAS_RHO_MIN), GAS_RHO_MAX)
     if held != rho:
-        v = semenov_kappa(eD, eG, held, T_in, zfac)
+        v = semenov_kappa(dust_coeffs, gas_grid, held, T_in, z_scale)
     return v
 
 
 @cached_njit
-def semenov_kappa(eD, eG, rho, T_in, zfac):
+def semenov_kappa(dust_coeffs, gas_grid, rho, T_in, z_scale):
     """Rosseland mean, cm^2/g, or 0 where Semenov has no value.
 
-    `opacity.f` lines 510 to 666. ``zfac`` multiplies the dust polynomials and
-    never the gas grid; at ``zfac = 1`` this is the unmodified routine.
+    `opacity.f` lines 510 to 666. ``z_scale`` multiplies the dust polynomials and
+    never the gas grid; at ``z_scale = 1`` this is the unmodified routine.
     """
     if T_in < 1.0:
         return 0.0
@@ -173,47 +173,47 @@ def semenov_kappa(eD, eG, rho, T_in, zfac):
         if T[it - 1] + dT[it - 1] < T_in <= T[it] + dT[it]:
             kk = it
     if kk == 5:
-        return _gop(eG, rho, T_in)
+        return _gop(gas_grid, rho, T_in)
 
     smooth = False
     for i in range(5):
         if abs(T_in - T[i]) <= dT[i]:
             smooth = True
     if not smooth:
-        return zfac * _polyval(eD[kk], T_in)
+        return z_scale * _polyval(dust_coeffs[kk], T_in)
 
     T1 = T[kk] - dT[kk]
     T2 = T[kk] + dT[kk]
-    left = zfac * _polyval(eD[kk], T1)
+    left = z_scale * _polyval(dust_coeffs[kk], T1)
     if kk == 4:
-        right = _gop(eG, rho, T2)
+        right = _gop(gas_grid, rho, T2)
     else:
-        right = zfac * _polyval(eD[kk + 1], T2)
+        right = z_scale * _polyval(dust_coeffs[kk + 1], T2)
     amp = 0.5 * (left - right)
     mid = 0.5 * (left + right)
     return mid - amp * np.sin(np.pi / 2.0 / dT[kk] * (T_in - T[kk]))
 
 
 @cached_njit
-def bilinear(x_ax, y_ax, block, x, y):
+def bilinear(log_T_axis, log_R_axis, table, log_T, log_R):
     """Bilinear on an unevenly spaced grid, held at the edges."""
-    nx = x_ax.size
-    ny = y_ax.size
-    if x <= x_ax[0]:
-        x = x_ax[0]
-    elif x >= x_ax[nx - 1]:
-        x = x_ax[nx - 1]
-    if y <= y_ax[0]:
-        y = y_ax[0]
-    elif y >= y_ax[ny - 1]:
-        y = y_ax[ny - 1]
+    nx = log_T_axis.size
+    ny = log_R_axis.size
+    if log_T <= log_T_axis[0]:
+        log_T = log_T_axis[0]
+    elif log_T >= log_T_axis[nx - 1]:
+        log_T = log_T_axis[nx - 1]
+    if log_R <= log_R_axis[0]:
+        log_R = log_R_axis[0]
+    elif log_R >= log_R_axis[ny - 1]:
+        log_R = log_R_axis[ny - 1]
     i = 0
-    while i < nx - 2 and x_ax[i + 1] < x:
+    while i < nx - 2 and log_T_axis[i + 1] < log_T:
         i += 1
     j = 0
-    while j < ny - 2 and y_ax[j + 1] < y:
+    while j < ny - 2 and log_R_axis[j + 1] < log_R:
         j += 1
-    u = (x - x_ax[i]) / (x_ax[i + 1] - x_ax[i])
-    v = (y - y_ax[j]) / (y_ax[j + 1] - y_ax[j])
-    return ((1 - u) * (1 - v) * block[i, j] + u * (1 - v) * block[i + 1, j]
-            + (1 - u) * v * block[i, j + 1] + u * v * block[i + 1, j + 1])
+    u = (log_T - log_T_axis[i]) / (log_T_axis[i + 1] - log_T_axis[i])
+    v = (log_R - log_R_axis[j]) / (log_R_axis[j + 1] - log_R_axis[j])
+    return ((1 - u) * (1 - v) * table[i, j] + u * (1 - v) * table[i + 1, j]
+            + (1 - u) * v * table[i, j + 1] + u * v * table[i + 1, j + 1])

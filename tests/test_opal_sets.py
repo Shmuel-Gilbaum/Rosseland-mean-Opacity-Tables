@@ -19,7 +19,7 @@ def test_every_shipped_set_is_readable():
     assert len(names) == 77
     assert "GN93hz" in names
     for name in ALTERNATIVES:
-        block = opal.table_at(0.7381, 0.0134, dataset=name)
+        block = opal.table_at(0.7381, 0.0134, opal_set=name)
         assert block.shape == (70, 19)
         assert np.isfinite(block).any()
 
@@ -28,7 +28,7 @@ def test_every_shipped_set_is_readable():
 def test_the_callable_takes_a_set_and_the_answer_moves(name):
     """A forwarded argument that changes nothing is not forwarded."""
     base = rm_tables.opacity()
-    other = rm_tables.opacity(dataset=name)
+    other = rm_tables.opacity(opal_set=name)
     assert other.provenance["opal_set"] == name
     assert base(1e5, 1e-8) != other(1e5, 1e-8)
 
@@ -36,7 +36,7 @@ def test_the_callable_takes_a_set_and_the_answer_moves(name):
 @pytest.mark.parametrize("name", ALTERNATIVES)
 def test_the_builder_takes_a_set_and_the_hot_grid_moves(name):
     base = rm_tables.build(n_T=30, n_R=20)
-    other = rm_tables.build(n_T=30, n_R=20, dataset=name)
+    other = rm_tables.build(n_T=30, n_R=20, opal_set=name)
     assert other.provenance["opal_set"] == name
     assert np.nanmax(np.abs(base.hot - other.hot)) > 0.0
 
@@ -45,7 +45,7 @@ def test_the_default_set_is_what_was_built_before_the_argument_existed():
     """Naming the default explicitly must change nothing, or every table built
     before this argument existed can no longer be reproduced."""
     a = rm_tables.build(n_T=30, n_R=20)
-    b = rm_tables.build(n_T=30, n_R=20, dataset="GN93hz")
+    b = rm_tables.build(n_T=30, n_R=20, opal_set="GN93hz")
     assert np.array_equal(a.cold, b.cold)
     assert np.array_equal(a.hot, b.hot)
 
@@ -61,8 +61,8 @@ def test_the_default_set_has_no_excess_carbon_or_oxygen():
 def test_excess_carbon_reaches_the_callable_through_a_set_that_has_it():
     """The enhanced grids live in the fixed-composition files, whose hydrogen
     and metal fractions are set by the file rather than interpolated."""
-    base = rm_tables.opacity(X=0.70, Z=0.02, dataset="Gz020.x70")
-    rich = rm_tables.opacity(X=0.70, Z=0.02, dataset="Gz020.x70", dXc=0.1)
+    base = rm_tables.opacity(X=0.70, Z=0.02, opal_set="Gz020.x70")
+    rich = rm_tables.opacity(X=0.70, Z=0.02, opal_set="Gz020.x70", dXc=0.1)
     assert rich.provenance["dXc"] == 0.1
     assert base(1e5, 1e-8) != rich(1e5, 1e-8)
 
@@ -73,7 +73,7 @@ def test_an_untabulated_excess_is_refused_by_name():
 
 
 def test_the_set_survives_a_save_and_a_load(tmp_path):
-    t = rm_tables.build(n_T=30, n_R=20, dataset="GS98hz")
+    t = rm_tables.build(n_T=30, n_R=20, opal_set="GS98hz")
     for ext in (".npz", ".txt"):
         p = tmp_path / ("t" + ext)
         t.save(str(p))

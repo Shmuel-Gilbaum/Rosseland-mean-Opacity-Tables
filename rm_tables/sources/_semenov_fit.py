@@ -77,7 +77,7 @@ RHO_G = np.array([
 
 
 def read_gas(path):
-    """eG[i, j], i over RHO_G, j over T_G. opacity.f:474-483."""
+    """gas_grid[i, j], i over RHO_G, j over T_G. opacity.f:474-483."""
     v = np.array(open(path).read().split()[1:], dtype=float)
     return v.reshape(71, 71)
 
@@ -130,9 +130,9 @@ def _eint(X, Y, Dm, XP, YP):
     return a*XP*XP + b*XP + c
 
 
-def gop(eG, rho, T):
+def gop(gas_grid, rho, T):
     """opacity.f:668-763. Zero outside the gas grid's own bounds."""
     if rho > 1.0e-7 or rho < 1.0e-19 or T < 500.0 or T > 10000.0:
         return 0.0
-    return 10.0 ** _eint(RHO_G, T_G, eG, rho, T)
+    return 10.0 ** _eint(RHO_G, T_G, gas_grid, rho, T)
 

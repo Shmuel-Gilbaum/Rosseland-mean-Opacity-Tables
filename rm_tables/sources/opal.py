@@ -32,11 +32,11 @@ import numpy as np
 from . import _composition
 
 __all__ = ["table_at", "grid", "axes", "compositions", "excess", "sets",
-           "DEFAULT_SET", "REFERENCE"]
+           "DEFAULT_OPAL_SET", "REFERENCE"]
 
 REFERENCE = "Iglesias & Rogers 1996, ApJ 464, 943"
 
-DEFAULT_SET = "GN93hz"
+DEFAULT_OPAL_SET = "GN93hz"
 
 _ARCHIVE = None
 _CACHE = {}
@@ -50,21 +50,21 @@ def _archive():
     return _ARCHIVE
 
 
-def _load(dataset=DEFAULT_SET):
-    if dataset not in _CACHE:
+def _load(opal_set=DEFAULT_OPAL_SET):
+    if opal_set not in _CACHE:
         z = _archive()
-        if dataset + "::kappa" not in z.files:
+        if opal_set + "::kappa" not in z.files:
             raise KeyError("no OPAL set %r; see rm_tables.sources.opal.sets()"
-                           % (dataset,))
-        _CACHE[dataset] = tuple(
-            z[k].astype(float) for k in (dataset + "::X", dataset + "::Z",
-                                         "log_T", "log_R", dataset + "::kappa"))
-    return _CACHE[dataset]
+                           % (opal_set,))
+        _CACHE[opal_set] = tuple(
+            z[k].astype(float) for k in (opal_set + "::X", opal_set + "::Z",
+                                         "log_T", "log_R", opal_set + "::kappa"))
+    return _CACHE[opal_set]
 
 
-def _co(dataset):
+def _co(opal_set):
     z = _archive()
-    return z[dataset + "::dXc"].astype(float), z[dataset + "::dXo"].astype(float)
+    return z[opal_set + "::dXc"].astype(float), z[opal_set + "::dXo"].astype(float)
 
 
 def sets():
@@ -93,12 +93,12 @@ def axes():
     return log_T, np.sort(log_R)
 
 
-def compositions(dataset=DEFAULT_SET):
+def compositions(opal_set=DEFAULT_OPAL_SET):
     """The hydrogen and metal mass fractions one set is tabulated at.
 
     Parameters
     ----------
-    dataset : str, optional
+    opal_set : str, optional
         A name from :func:`sets`.
 
     Returns
@@ -108,16 +108,16 @@ def compositions(dataset=DEFAULT_SET):
     Z : ndarray
         Metal mass fraction, one entry per table.
     """
-    X, Z, _, _, _ = _load(dataset)
+    X, Z, _, _, _ = _load(opal_set)
     return X, Z
 
 
-def excess(dataset=DEFAULT_SET):
+def excess(opal_set=DEFAULT_OPAL_SET):
     """The excess carbon and oxygen mass fractions one set is tabulated at.
 
     Parameters
     ----------
-    dataset : str, optional
+    opal_set : str, optional
         A name from :func:`sets`.
 
     Returns
@@ -127,8 +127,8 @@ def excess(dataset=DEFAULT_SET):
     dXo : ndarray
         Oxygen mass fraction beyond that in Z, one entry per table.
     """
-    _load(dataset)
-    return _co(dataset)
+    _load(opal_set)
+    return _co(opal_set)
 
 
 def _bracket(values, target):
@@ -140,7 +140,7 @@ def _bracket(values, target):
     return i, 0.0 if span == 0 else (target - values[i]) / span
 
 
-def table_at(X, Z, z_floor=1e-4, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
+def table_at(X, Z, z_floor=1e-4, opal_set=DEFAULT_OPAL_SET, dXc=0.0, dXo=0.0):
     """``log10`` opacity at one composition, on OPAL's own axes.
 
     Parameters
@@ -152,7 +152,7 @@ def table_at(X, Z, z_floor=1e-4, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
     z_floor : float, optional
         Added to both metallicities before taking the logarithm, so that a
         metallicity of zero remains interpolable.
-    dataset : str, optional
+    opal_set : str, optional
         A name from :func:`sets`.
     dXc : float, optional
         Carbon mass fraction beyond that in Z. Must be one the set tabulates.
@@ -175,21 +175,21 @@ def table_at(X, Z, z_floor=1e-4, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
     Linear in hydrogen and linear in ``log10(Z + z_floor)``, at the selected
     ``(dXc, dXo)``. This does not reproduce OPAL's own interpolator exactly.
     """
-    Xs, Zs, log_T, log_R, K = _load(dataset)
+    Xs, Zs, log_T, log_R, K = _load(opal_set)
     order = np.argsort(log_R)
 
-    cs, os_ = _co(dataset)
+    cs, os_ = _co(opal_set)
     keep = np.where((np.abs(cs - dXc) < 1e-6) & (np.abs(os_ - dXo) < 1e-6))[0]
     if keep.size == 0:
         raise ValueError(
             "set %r has no table at dXc=%g, dXo=%g; see "
-            "rm_tables.sources.opal.excess(%r)" % (dataset, dXc, dXo, dataset))
+            "rm_tables.sources.opal.excess(%r)" % (opal_set, dXc, dXo, opal_set))
     Xs, Zs, K = Xs[keep], Zs[keep], K[keep]
-    block = _composition.interpolate(Xs, Zs, K, X, Z, z_floor, dataset)
+    block = _composition.interpolate(Xs, Zs, K, X, Z, z_floor, opal_set)
     return block[:, order]
 
 
-def grid(log_T, log_R, X, Z, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
+def grid(log_T, log_R, X, Z, opal_set=DEFAULT_OPAL_SET, dXc=0.0, dXo=0.0):
     """``log10`` opacity on requested axes, NaN outside OPAL's own.
 
     Interpolates in temperature and in density parameter separately, and does
@@ -208,7 +208,7 @@ def grid(log_T, log_R, X, Z, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
         Hydrogen mass fraction.
     Z : float
         Metal mass fraction.
-    dataset : str, optional
+    opal_set : str, optional
         A name from :func:`sets`.
     dXc : float, optional
         Carbon mass fraction beyond that in Z.
@@ -221,7 +221,7 @@ def grid(log_T, log_R, X, Z, dataset=DEFAULT_SET, dXc=0.0, dXo=0.0):
         ``log10`` of the opacity in cm^2/g.
     """
     own_T, own_R = axes()
-    block = table_at(X, Z, dataset=dataset, dXc=dXc, dXo=dXo)
+    block = table_at(X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
     log_T = np.ravel(log_T)
     log_R = np.ravel(log_R)
 

@@ -40,10 +40,10 @@ def test_it_broadcasts(kappa):
 
 def test_below_the_ramp_it_is_the_cold_source_exactly(kappa):
     """No table, no resampling: the answer must be the source's own value."""
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     for T in (50.0, 300.0, 1500.0, 4000.0):
         rho = 1e-14
-        want = C.semenov_kappa(C.ED_HI_FIRST, eG, rho, T, kappa._zfac)
+        want = C.semenov_kappa(C.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, kappa._z_scale)
         assert kappa(T, rho) == want
 
 

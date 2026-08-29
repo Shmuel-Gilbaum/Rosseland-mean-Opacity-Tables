@@ -84,19 +84,20 @@ def test_text_is_larger_than_numpy_and_that_is_the_trade(tables, tmp_path):
 
 
 @pytest.mark.parametrize("ext", [".npz", ".txt", ".h5"])
-@pytest.mark.parametrize("split", [False, True])
-def test_a_single_grid_survives_every_format(tmp_path_factory, ext, split):
+@pytest.mark.parametrize("allow_split", [False, True])
+def test_a_single_grid_survives_every_format(tmp_path_factory, ext,
+                                             allow_split):
     """The writers were built when every table came in pairs. A single grid has
     no hot half, and writing None would either crash or invent an empty array."""
     if ext == ".h5":
         pytest.importorskip("h5py")
-    t = rm_tables.build(n_T=30, n_R=20, split=split)
-    assert t.is_split is split
+    t = rm_tables.build(n_T=30, n_R=20, allow_split=allow_split)
+    assert t.is_split is allow_split
     p = str(tmp_path_factory.mktemp("io") / f"t{ext}")
     t.save(p)
     back = rm_tables.load(p)
-    assert back.is_split is split
-    if not split:
+    assert back.is_split is allow_split
+    if not allow_split:
         assert back.hot is None
     assert back.kappa(3000.0, 1e-14) == pytest.approx(
         t.kappa(3000.0, 1e-14), rel=1e-5)
@@ -105,7 +106,7 @@ def test_a_single_grid_survives_every_format(tmp_path_factory, ext, split):
 def test_reading_an_opacity_from_a_single_grid_works():
     """`which` returns all False on a single grid, and the lookup must handle
     that rather than reaching for a hot half that is not there."""
-    t = rm_tables.build(n_T=30, n_R=20, split=False)
+    t = rm_tables.build(n_T=30, n_R=20, allow_split=False)
     assert t.kappa(3000.0, 1e-14) > 0.0
     many = t.kappa(np.array([300.0, 3000.0, 1e5]), 1e-14)
     assert many.shape == (3,)

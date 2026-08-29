@@ -47,22 +47,22 @@ def test_the_dust_destruction_band_is_where_it_used_to_fail():
 def test_holding_the_density_edge_leaves_the_value_flat_beyond_it():
     """Holding is only defensible because the tabulated opacity is flat at the
     dilute edge. Past the edge the answer must stop moving."""
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     T = 3000.0
-    at_edge = C.semenov_kappa_held(C.ED_HI_FIRST, eG, C.GAS_RHO_MIN, T, 1.0)
+    at_edge = C.semenov_kappa_held(C.DUST_COEFFS_HI_FIRST, gas_grid, C.GAS_RHO_MIN, T, 1.0)
     for rho in (C.GAS_RHO_MIN * 0.1, 1e-25, 1e-40):
-        assert C.semenov_kappa_held(C.ED_HI_FIRST, eG, rho, T, 1.0) == at_edge
+        assert C.semenov_kappa_held(C.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 1.0) == at_edge
 
 
 def test_holding_changes_nothing_inside_the_valid_range():
     """The held variant must be the unmodified routine wherever the routine has
     an answer, or it would be a second implementation."""
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     worst = 0
     for T in np.linspace(6.0, 9900.0, 300):
         for rho in (1e-18, 1e-14, 1e-10, 1e-8):
-            plain = C.semenov_kappa(C.ED_HI_FIRST, eG, rho, T, 1.0)
-            held = C.semenov_kappa_held(C.ED_HI_FIRST, eG, rho, T, 1.0)
+            plain = C.semenov_kappa(C.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 1.0)
+            held = C.semenov_kappa_held(C.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 1.0)
             if plain > 0.0:
                 assert held == plain
                 worst += 1

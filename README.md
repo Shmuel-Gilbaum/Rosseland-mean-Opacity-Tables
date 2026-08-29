@@ -58,12 +58,12 @@ import numpy as np
 import rm_tables
 
 kappa = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
-                          dataset="GN93hz", dXc=0.0, dXo=0.0)
+                          opal_set="GN93hz", dXc=0.0, dXo=0.0)
 print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
 `X` and `Z` are the hydrogen and metal mass fractions and helium is the
-remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source, `dataset`
+remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source, `opal_set`
 picks which of OPAL's 77 published files supplies the hot end, and `dXc` and
 `dXo` add carbon and oxygen beyond what `Z` carries.
 
@@ -93,7 +93,7 @@ NaN where the object raises.
 ```python
 from numba import njit
 
-fast = rm_tables.opacity().compiled()
+fast = rm_tables.opacity().as_compiled()
 
 @njit
 def optical_depth(T, rho, height):
@@ -138,7 +138,7 @@ carries the measurement that set it.
   it was built at.
 - **Saving.** Compressed NumPy, plain text or HDF5, chosen by the file
   extension, each carrying the provenance beside the numbers.
-- **Compiled code.** `opacity(...).compiled()` is callable from inside numba,
+- **Compiled code.** `opacity(...).as_compiled()` is callable from inside numba,
   and a fitted spline over a built table is the route where the solver needs
   smooth derivatives.
 

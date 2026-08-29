@@ -67,7 +67,7 @@ def test_the_two_entry_points_agree_on_what_they_share():
     silent difference between building a table and calling the sources."""
     o = {p.name: p.default
          for p in inspect.signature(rm_tables.opacity).parameters.values()}
-    for name in ("X", "Z", "cold", "dataset", "dXc", "dXo"):
+    for name in ("X", "Z", "cold", "opal_set", "dXc", "dXo"):
         assert o[name] == D[name], name
 
 

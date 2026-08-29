@@ -39,7 +39,7 @@ def test_the_solar_default_is_accepted():
     import inspect
     d = {p.name: p.default
          for p in inspect.signature(rm_tables.opacity).parameters.values()}
-    check_composition(d["X"], d["Z"], d["dataset"])
+    check_composition(d["X"], d["Z"], d["opal_set"])
 
 
 def test_the_tabulated_corners_are_inside_not_outside():
@@ -56,14 +56,14 @@ def test_a_nominal_value_is_not_refused_by_its_own_32_bit_axis():
     comparing 0.7 against that float refuses a value the set contains. Three
     bugs in this package have come from that mistake."""
     check_composition(0.70, 0.02, "Gz020.x70")
-    assert rm_tables.opacity(X=0.70, Z=0.02, dataset="Gz020.x70")(1e5, 1e-8) > 0
+    assert rm_tables.opacity(X=0.70, Z=0.02, opal_set="Gz020.x70")(1e5, 1e-8) > 0
 
 
 def test_a_set_holding_one_hydrogen_fraction_refuses_any_other():
     """Before the guard, hydrogen was silently ignored for these sets: every
     value returned the one tabulated table."""
     with pytest.raises(CoverageError, match="tabulates hydrogen"):
-        rm_tables.opacity(X=0.35, Z=0.02, dataset="Gz020.x70")
+        rm_tables.opacity(X=0.35, Z=0.02, opal_set="Gz020.x70")
 
 
 def test_metals_past_the_set_ceiling_are_refused():

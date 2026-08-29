@@ -64,14 +64,14 @@ def test_ferguson_reaches_the_full_density_ceiling_in_a_single_grid():
     same request either splits or raises. Choosing the cold source is what
     decides whether one dense grid is possible."""
     kw = dict(log_T_range=(2.71, 7.1), log_R_range=(-8.0, 1.0), n_T=60, n_R=40)
-    t = rm_tables.build(cold="ferguson", split=False, **kw)
+    t = rm_tables.build(cold="ferguson", allow_split=False, **kw)
     assert not t.is_split
     assert t.cold.shape == (60, 40)
     assert np.isfinite(t.cold).all()
     assert t.cold_log_R[-1] == pytest.approx(1.0)
 
     with pytest.raises(CoverageError) as e:
-        rm_tables.build(cold="semenov", split=False, **kw)
+        rm_tables.build(cold="semenov", allow_split=False, **kw)
     assert "ferguson" in str(e.value)
 
 

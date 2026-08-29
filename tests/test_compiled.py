@@ -17,13 +17,13 @@ def test_the_compiled_semenov_is_bit_identical_to_the_port():
     """Not 'close'. The same numbers. Compiling forced two changes and neither
     touches the arithmetic: the polynomial is evaluated term by term rather
     than by a NumPy call, and its coefficients are reversed once beforehand."""
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     exact = 0
     n = 0
     for rho in (1e-18, 1e-16, 1e-14, 1e-11, 1e-8):
         for T in np.linspace(5.0, 9990.0, 400):
-            a = F.cop(F.eR, eG, rho, T)
-            b = K.semenov_kappa(K.ED_HI_FIRST, eG, rho, T, 1.0)
+            a = F.cop(F.eR, gas_grid, rho, T)
+            b = K.semenov_kappa(K.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 1.0)
             n += 1
             if a == b:
                 exact += 1
@@ -31,11 +31,11 @@ def test_the_compiled_semenov_is_bit_identical_to_the_port():
 
 
 def test_the_metallicity_multiply_reaches_dust_and_not_gas():
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     rho = 1e-14
     for T, expected in ((500.0, 2.0), (3000.0, 1.0)):
-        one = K.semenov_kappa(K.ED_HI_FIRST, eG, rho, T, 1.0)
-        two = K.semenov_kappa(K.ED_HI_FIRST, eG, rho, T, 2.0)
+        one = K.semenov_kappa(K.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 1.0)
+        two = K.semenov_kappa(K.DUST_COEFFS_HI_FIRST, gas_grid, rho, T, 2.0)
         assert one > 0.0
         assert two / one == pytest.approx(expected, rel=1e-12)
 

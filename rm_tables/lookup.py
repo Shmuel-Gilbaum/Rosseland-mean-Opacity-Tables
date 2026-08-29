@@ -23,21 +23,23 @@ from .sources import ferguson, opal, semenov
 
 __all__ = ["opacity", "Opacity"]
 
-RAMP = (3.75, 4.00)
+RAMP_LOG_T = (3.75, 4.00)
 """Temperature window over which the cold source hands to OPAL, ``log10 T``."""
 
 
 @_c.cached_njit
-def _one(eD, eG, opal_T, opal_R, opal_k, rho, T, zfac, lo, hi):
-    """One opacity, cm^2/g. Ramps between the two sources across ``lo`` to ``hi``."""
+def _kappa_at(dust_coeffs, gas_grid, opal_T, opal_R, opal_k, rho, T,
+              z_scale, ramp_lo, ramp_hi):
+    """One opacity, cm^2/g. Ramps between the two sources across
+    ``ramp_lo`` to ``ramp_hi``."""
     lt = np.log10(T)
-    if lt >= hi:
+    if lt >= ramp_hi:
         return 10.0 ** _c.bilinear(opal_T, opal_R, opal_k, lt,
                                    np.log10(rho / (T / 1e6) ** 3))
-    cold = _c.semenov_kappa_held(eD, eG, rho, T, zfac)
-    if lt <= lo:
+    cold = _c.semenov_kappa_held(dust_coeffs, gas_grid, rho, T, z_scale)
+    if lt <= ramp_lo:
         return cold
-    w = (lt - lo) / (hi - lo)
+    w = (lt - ramp_lo) / (ramp_hi - ramp_lo)
     hot = 10.0 ** _c.bilinear(opal_T, opal_R, opal_k, lt,
                               np.log10(rho / (T / 1e6) ** 3))
     if cold <= 0.0:
@@ -46,34 +48,37 @@ def _one(eD, eG, opal_T, opal_R, opal_k, rho, T, zfac, lo, hi):
 
 
 @_c.cached_njit
-def _many(eD, eG, opal_T, opal_R, opal_k, rho, T, zfac, lo, hi, out):
+def _kappa_over(dust_coeffs, gas_grid, opal_T, opal_R, opal_k, rho, T,
+                z_scale, ramp_lo, ramp_hi, out):
     for i in range(out.size):
-        out[i] = _one(eD, eG, opal_T, opal_R, opal_k, rho[i], T[i], zfac, lo, hi)
+        out[i] = _kappa_at(dust_coeffs, gas_grid, opal_T, opal_R, opal_k,
+                           rho[i], T[i], z_scale, ramp_lo, ramp_hi)
     return out
 
 
 @_c.cached_njit
-def _one_grids(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
-               rho, T, lo, hi):
+def _kappa_at_gridded(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
+                      rho, T, ramp_lo, ramp_hi):
     """One opacity when the cold source is tabulated rather than computed."""
     lt = np.log10(T)
     lr = np.log10(rho / (T / 1e6) ** 3)
     hot = _c.bilinear(opal_T, opal_R, opal_k, lt, lr)
-    if lt >= hi:
+    if lt >= ramp_hi:
         return 10.0 ** hot
     cold = _c.bilinear(cold_T, cold_R, cold_k, lt, lr)
-    if lt <= lo:
+    if lt <= ramp_lo:
         return 10.0 ** cold
-    w = (lt - lo) / (hi - lo)
+    w = (lt - ramp_lo) / (ramp_hi - ramp_lo)
     return 10.0 ** ((1.0 - w) * cold + w * hot)
 
 
 @_c.cached_njit
-def _many_grids(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
-                rho, T, lo, hi, out):
+def _kappa_over_gridded(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
+                        rho, T, ramp_lo, ramp_hi, out):
     for i in range(out.size):
-        out[i] = _one_grids(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
-                            rho[i], T[i], lo, hi)
+        out[i] = _kappa_at_gridded(cold_T, cold_R, cold_k,
+                                   opal_T, opal_R, opal_k,
+                                   rho[i], T[i], ramp_lo, ramp_hi)
     return out
 
 
@@ -89,11 +94,11 @@ class Opacity:
         the excess carbon and oxygen.
     """
 
-    def __init__(self, X, Z, cold, provenance, dataset, dXc, dXo):
+    def __init__(self, X, Z, cold, provenance, opal_set, dXc, dXo):
         self._cold = cold
-        self._eD = _c.ED_HI_FIRST
-        self._eG = semenov._gas_grid()
-        self._zfac = max(Z, 1e-12) / semenov.REFERENCE_Z
+        self._dust_coeffs = _c.DUST_COEFFS_HI_FIRST
+        self._gas_grid = semenov._gas_grid()
+        self._z_scale = max(Z, 1e-12) / semenov.REFERENCE_Z
         # The compiled lookups clamp into their grids, so a request below a
         # source's floor would come back as that source's coldest value rather
         # than as an error. The floor is read from the coverage declaration.
@@ -105,7 +110,7 @@ class Opacity:
             self._cold_R = np.ascontiguousarray(f_R)
             self._cold_k = np.ascontiguousarray(ferguson.table_at(X, Z))
         own_T, own_R = opal.axes()
-        block = opal.table_at(X, Z, dataset=dataset, dXc=dXc, dXo=dXo)
+        block = opal.table_at(X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
         # OPAL's published tables are blank in two corners. Carry the nearest
         # tabulated value in along density rather than returning nothing.
         for i in range(block.shape[0]):
@@ -185,13 +190,16 @@ class Opacity:
         tabulated = self._cold == "ferguson"
         if Ta.ndim == 0:
             if tabulated:
-                v = _one_grids(self._cold_T, self._cold_R, self._cold_k,
-                               self._opal_T, self._opal_R, self._opal_k,
-                               float(ra), float(Ta), RAMP[0], RAMP[1])
+                v = _kappa_at_gridded(
+                    self._cold_T, self._cold_R, self._cold_k,
+                    self._opal_T, self._opal_R, self._opal_k,
+                    float(ra), float(Ta), RAMP_LOG_T[0], RAMP_LOG_T[1])
             else:
-                v = _one(self._eD, self._eG, self._opal_T, self._opal_R,
-                         self._opal_k, float(ra), float(Ta), self._zfac,
-                         RAMP[0], RAMP[1])
+                v = _kappa_at(
+                    self._dust_coeffs, self._gas_grid,
+                    self._opal_T, self._opal_R, self._opal_k,
+                    float(ra), float(Ta), self._z_scale,
+                    RAMP_LOG_T[0], RAMP_LOG_T[1])
             return float(v)
         if Ta.size == 0:
             return np.empty(Ta.shape)
@@ -199,15 +207,18 @@ class Opacity:
         flat_r = np.ascontiguousarray(ra.ravel())
         out = np.empty(flat_T.size)
         if tabulated:
-            _many_grids(self._cold_T, self._cold_R, self._cold_k,
-                        self._opal_T, self._opal_R, self._opal_k,
-                        flat_r, flat_T, RAMP[0], RAMP[1], out)
+            _kappa_over_gridded(
+                self._cold_T, self._cold_R, self._cold_k,
+                self._opal_T, self._opal_R, self._opal_k,
+                flat_r, flat_T, RAMP_LOG_T[0], RAMP_LOG_T[1], out)
         else:
-            _many(self._eD, self._eG, self._opal_T, self._opal_R, self._opal_k,
-                  flat_r, flat_T, self._zfac, RAMP[0], RAMP[1], out)
+            _kappa_over(self._dust_coeffs, self._gas_grid,
+                        self._opal_T, self._opal_R, self._opal_k,
+                        flat_r, flat_T, self._z_scale,
+                        RAMP_LOG_T[0], RAMP_LOG_T[1], out)
         return out.reshape(Ta.shape)
 
-    def compiled(self):
+    def as_compiled(self):
         """A version of this opacity that compiled code can call.
 
         The object itself cannot be: numba refuses a Python object holding
@@ -239,14 +250,14 @@ class Opacity:
         --------
         >>> import rm_tables
         >>> from numba import njit
-        >>> kappa = rm_tables.opacity().compiled()
+        >>> kappa = rm_tables.opacity().as_compiled()
         >>> @njit
         ... def optical_depth(T, rho, height):
         ...     return kappa(T, rho) * rho * height
         >>> optical_depth(3000.0, 1e-14, 1e13)
         6.6356...e-06
         """
-        lo, hi = RAMP
+        ramp_lo, ramp_hi = RAMP_LOG_T
         floor_K, ceiling_K = self._floor_K, self._ceiling_K
         if self._cold == "ferguson":
             cT, cR, cK = self._cold_T, self._cold_R, self._cold_k
@@ -257,19 +268,21 @@ class Opacity:
                 if not (floor_K <= T <= ceiling_K and rho > 0.0
                         and np.isfinite(rho)):
                     return np.nan
-                return _one_grids(cT, cR, cK, oT, oR, oK, rho, T, lo, hi)
+                return _kappa_at_gridded(cT, cR, cK, oT, oR, oK, rho, T,
+                                         ramp_lo, ramp_hi)
             return kappa
 
-        eD, eG = self._eD, self._eG
+        dust_coeffs, gas_grid = self._dust_coeffs, self._gas_grid
         oT, oR, oK = self._opal_T, self._opal_R, self._opal_k
-        zfac = self._zfac
+        z_scale = self._z_scale
 
         @_njit
         def kappa(T, rho):
             if not (floor_K <= T <= ceiling_K and rho > 0.0
                     and np.isfinite(rho)):
                 return np.nan
-            return _one(eD, eG, oT, oR, oK, rho, T, zfac, lo, hi)
+            return _kappa_at(dust_coeffs, gas_grid, oT, oR, oK, rho, T,
+                             z_scale, ramp_lo, ramp_hi)
         return kappa
 
     def __repr__(self):
@@ -277,7 +290,7 @@ class Opacity:
         return f"Opacity(X={p['X']:.4f}, Z={p['Z']:.4f}, cold={p['cold']!r})"
 
 
-def opacity(X=0.7381, Z=0.0134, cold="semenov", dataset="GN93hz",
+def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
             dXc=0.0, dXo=0.0):
     """Build a callable opacity at one composition.
 
@@ -289,7 +302,7 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", dataset="GN93hz",
         Cold source. Semenov gives evaporation temperatures and Ferguson
         gives condensation temperatures, so Semenov suits material that is
         heating and Ferguson material that is cooling.
-    dataset : str, optional
+    opal_set : str, optional
         Which OPAL file supplies the hot opacity, from
         `rm_tables.sources.opal.sets()`. Selects the metal mixture.
     dXc, dXo : float, optional
@@ -317,7 +330,7 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", dataset="GN93hz",
     array([1.75354e+00, 6.00000e-05, 4.46020e-01])
     """
     X, Z = float(X), float(Z)
-    check_composition(X, Z, dataset)
+    check_composition(X, Z, opal_set)
     if cold not in ("semenov", "ferguson"):
         raise KeyError(f"unknown cold source {cold!r}. "
                        f"Available: 'semenov', 'ferguson'.")
@@ -326,9 +339,9 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", dataset="GN93hz",
         "cold_reference": (ferguson.REFERENCE if cold == "ferguson"
                            else semenov.REFERENCE),
         "hot_reference": opal.REFERENCE,
-        "opal_set": dataset, "dXc": float(dXc), "dXo": float(dXo),
+        "opal_set": opal_set, "dXc": float(dXc), "dXo": float(dXo),
         "reference_Z": (ferguson.REFERENCE_Z if cold == "ferguson"
                         else semenov.REFERENCE_Z),
         "units": "cm^2/g",
     }
-    return Opacity(X, Z, cold, provenance, dataset, float(dXc), float(dXo))
+    return Opacity(X, Z, cold, provenance, opal_set, float(dXc), float(dXo))

@@ -206,7 +206,7 @@ def test_coverage_does_not_depend_on_the_resolution(n_T):
     was invisible and the same request was legal at 50 points and illegal at
     100. The resolution is documented as not physics."""
     with pytest.raises(CoverageError):
-        rm_tables.build(split=False, log_R_range=(-8.0, -0.20), n_R=6, n_T=n_T)
+        rm_tables.build(allow_split=False, log_R_range=(-8.0, -0.20), n_R=6, n_T=n_T)
 
 
 def test_the_coverage_error_does_not_offer_a_remedy_already_in_force():

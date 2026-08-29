@@ -73,7 +73,7 @@ file. Asking one of those for a different hydrogen fraction raises.
 
 ```python
 try:
-    rm_tables.opacity(X=0.35, Z=0.02, dataset="Gz020.x70")
+    rm_tables.opacity(X=0.35, Z=0.02, opal_set="Gz020.x70")
 except ValueError as e:
     print(str(e).split(", and")[0])    # -> set 'Gz020.x70' tabulates hydrogen from 0.7 to 0.7
 ```
@@ -111,12 +111,12 @@ print(len(opal.sets()))       # -> 77
 print(opal.sets()[28:33])     # -> ('GN93hz.CNOtoNe', 'GN93hz.COtoN', ...
 ```
 
-`dataset` selects one. The mixture moves the answer at 1e5 K by about 9 percent
+`opal_set` selects one. The mixture moves the answer at 1e5 K by about 9 percent
 across the four main sets.
 
 ```python
 for name in ("GN93hz", "GS98hz", "AGS04hz", "W95hz"):
-    print("%-9s %.6f" % (name, rm_tables.opacity(dataset=name)(1e5, 1e-8)))
+    print("%-9s %.6f" % (name, rm_tables.opacity(opal_set=name)(1e5, 1e-8)))
 
 # -> GN93hz    0.927698
 # -> GS98hz    0.936628
@@ -132,7 +132,7 @@ the file rather than being interpolated, so a set carrying them is chosen by
 name.
 
 ```python
-at = dict(X=0.70, Z=0.02, dataset="Gz020.x70")
+at = dict(X=0.70, Z=0.02, opal_set="Gz020.x70")
 print(rm_tables.opacity(**at)(1e5, 1e-8))              # -> 0.9931160483613025
 print(rm_tables.opacity(dXc=0.1, **at)(1e5, 1e-8))     # -> 1.0209394827969092
 ```
@@ -156,7 +156,7 @@ import numpy as np
 import rm_tables
 from numba import njit
 
-kappa = rm_tables.opacity(X=0.7381, Z=0.0134).compiled()
+kappa = rm_tables.opacity(X=0.7381, Z=0.0134).as_compiled()
 
 @njit
 def optical_depth(T, rho, height):
@@ -320,13 +320,14 @@ print(pair.which(warm, 0.5), pair.which(5.0, -13.0))    # -> True True
 default. `help` on the returned object documents every attribute.
 
 Splitting is permitted rather than forced. A range that sits on one side of the
-split temperature comes back as one grid whatever `split` says, because the
-second would be empty. `split=False` requires a single grid and raises rather
+split temperature comes back as one grid whatever `allow_split` says, because
+the second would be empty. `allow_split=False` requires a single grid and
+raises rather
 than clipping.
 
 ```python
 try:
-    rm_tables.build(log_R_range=(-8.0, 1.0), n_T=40, n_R=25, split=False)
+    rm_tables.build(log_R_range=(-8.0, 1.0), n_T=40, n_R=25, allow_split=False)
 except ValueError as e:
     print(str(e).splitlines()[-1])    # -> Splitting the table does not help. ...
 ```

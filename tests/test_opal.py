@@ -63,7 +63,7 @@ def test_metallicity_moves_the_opacity_in_the_right_direction():
 def test_all_seventy_seven_published_sets_are_shipped():
     names = opal.sets()
     assert len(names) == 77
-    assert opal.DEFAULT_SET in names
+    assert opal.DEFAULT_OPAL_SET in names
     for one in ("GS98hz", "AGS04hz", "W95hz", "GN93hz.CtoN", "Gz020.x70"):
         assert one in names
 
@@ -82,7 +82,7 @@ def test_the_float32_store_keeps_opal_s_own_print_precision():
 
 def test_an_unknown_set_name_is_refused():
     with pytest.raises(KeyError):
-        opal.table_at(0.7, 0.02, dataset="no_such_set")
+        opal.table_at(0.7, 0.02, opal_set="no_such_set")
 
 
 def test_grevesse_sauval_1998_differs_from_grevesse_noels_1993():
@@ -91,7 +91,7 @@ def test_grevesse_sauval_1998_differs_from_grevesse_noels_1993():
     i = int(np.argmin(np.abs(log_T - 6.4)))
     j = int(np.argmin(np.abs(log_R + 1.5)))
     gn93 = opal.table_at(0.7, 0.02)[i, j]
-    gs98 = opal.table_at(0.7, 0.02, dataset="GS98hz")[i, j]
+    gs98 = opal.table_at(0.7, 0.02, opal_set="GS98hz")[i, j]
     assert abs(gs98 - gn93) > 1e-3
     assert abs(gs98 - gn93) < 0.1, "a different metal mix, not a different table"
 
@@ -102,7 +102,7 @@ def test_a_carbon_rich_set_matches_the_default_where_it_carries_no_excess():
     X, Z = opal.compositions("Gz020.x70")
     assert np.unique(Z).size == 1
     plain = opal.table_at(0.7, 0.02)
-    corner = opal.table_at(0.7, 0.02, dataset="Gz020.x70")
+    corner = opal.table_at(0.7, 0.02, opal_set="Gz020.x70")
     both = np.isfinite(plain) & np.isfinite(corner)
     assert np.abs(plain[both] - corner[both]).max() < 1e-6
 
@@ -111,8 +111,8 @@ def test_excess_carbon_raises_the_opacity_at_the_iron_bump():
     log_T, log_R = opal.axes()
     i = int(np.argmin(np.abs(log_T - 6.4)))
     j = int(np.argmin(np.abs(log_R + 1.5)))
-    none = opal.table_at(0.7, 0.02, dataset="Gz020.x70")[i, j]
-    rich = opal.table_at(0.7, 0.02, dataset="Gz020.x70", dXc=0.1)[i, j]
+    none = opal.table_at(0.7, 0.02, opal_set="Gz020.x70")[i, j]
+    rich = opal.table_at(0.7, 0.02, opal_set="Gz020.x70", dXc=0.1)[i, j]
     assert rich > none
 
 
@@ -121,7 +121,7 @@ def test_an_untabulated_excess_is_refused_rather_than_interpolated():
     assert dXc.size == dXo.size == 32
     assert 0.123 not in set(np.round(dXc, 6))
     with pytest.raises(ValueError):
-        opal.table_at(0.7, 0.02, dataset="Gz020.x70", dXc=0.123)
+        opal.table_at(0.7, 0.02, opal_set="Gz020.x70", dXc=0.123)
 
 
 def test_the_default_set_carries_no_excess_carbon_or_oxygen():

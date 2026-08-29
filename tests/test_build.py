@@ -65,20 +65,20 @@ def test_a_density_ceiling_semenov_cannot_reach_needs_a_split():
 def test_forbidding_the_split_makes_that_same_request_raise():
     """The flag permits splitting. Forbidding it must not silently clip."""
     with pytest.raises(CoverageError) as e:
-        B.build(log_R_range=(-8.0, 1.0), n_T=80, n_R=60, split=False)
+        B.build(log_R_range=(-8.0, 1.0), n_T=80, n_R=60, allow_split=False)
     assert "ferguson" in str(e.value)
 
 
 def test_a_range_inside_one_region_is_one_grid_even_when_splitting_is_allowed():
     """A second grid would be empty, so it is not made."""
     for kw in (dict(log_T_range=(0.699, 3.0)), dict(log_T_range=(4.5, 7.0))):
-        t = B.build(n_T=40, n_R=25, split=True, **kw)
+        t = B.build(n_T=40, n_R=25, allow_split=True, **kw)
         assert not t.is_split
         assert t.hot is None
 
 
 def test_a_single_grid_reports_that_every_point_is_its_own():
-    t = B.build(n_T=40, n_R=25, split=False)
+    t = B.build(n_T=40, n_R=25, allow_split=False)
     assert not t.is_split
     assert bool(t.which(5.0, 0.5)) is False
     assert t.which(np.array([2.0, 6.0]), -4.0).tolist() == [False, False]

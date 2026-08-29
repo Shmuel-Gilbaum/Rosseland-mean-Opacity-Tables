@@ -8,13 +8,13 @@ from rm_tables.sources import semenov
 def test_the_reference_metallicity_reproduces_the_unmodified_routine():
     """The metallicity multiply must be invisible at the reference."""
     import _semenov_reference as f
-    eG = semenov._gas_grid()
+    gas_grid = semenov._gas_grid()
     worst = 0.0
     for lt in np.linspace(0.7, 4.0, 60):
         T = 10.0 ** lt
         for lr in np.linspace(-8.0, 1.0, 19):
             rho = 10.0 ** lr * (T / 1e6) ** 3
-            a = f.cop(f.eR, eG, rho, T)
+            a = f.cop(f.eR, gas_grid, rho, T)
             b = semenov.kappa(T, rho)
             worst = max(worst, abs(a - b))
     assert worst == 0.0, worst
