@@ -221,7 +221,7 @@ class Tables:
         destroyed and the opacity falls steeply with density. `rm_tables.opacity`
         reads the source rather than a grid and answers there: Semenov reaches
         ``log10 R`` of 1.47 at 1500 K where a default grid stops at -0.25. Anything needing a smoother interpolant should fit its own spline
-        to `cold` and `hot` and use `which` to choose between them.
+        to `cold` and `hot` and use `is_hot` to choose between them.
 
         Parameters
         ----------
