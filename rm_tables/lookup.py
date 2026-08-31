@@ -18,6 +18,8 @@ numbers, so a swap cannot be detected.
 Per point, inside one call over an array of 200,000 points, compiled: 168 ns
 through Semenov and 102 ns through OPAL.
 """
+import warnings
+
 import numpy as np
 from numba import njit as _njit
 
@@ -99,7 +101,8 @@ class Opacity:
         the excess carbon and oxygen.
     """
 
-    def __init__(self, X, Z, cold, provenance, opal_set, dXc, dXo):
+    def __init__(self, X, Z, cold, provenance, opal_set, dXc, dXo,
+                 alpha=ferguson.DEFAULT_ALPHA):
         self._cold = cold
         self._dust_coeffs = _c.DUST_COEFFS_HI_FIRST
         self._gas_grid = semenov._gas_grid()
@@ -110,10 +113,11 @@ class Opacity:
         self._floor_K = 10.0 ** _BY_NAME[cold].log_T[0]
         self._ceiling_K = 10.0 ** _BY_NAME["opal"].log_T[1]
         if cold == "ferguson":
-            f_T, f_R = ferguson.axes()
+            f_T, f_R = ferguson.axes(alpha)
             self._cold_T = np.ascontiguousarray(f_T)
             self._cold_R = np.ascontiguousarray(f_R)
-            self._cold_k = np.ascontiguousarray(ferguson.table_at(X, Z))
+            self._cold_k = np.ascontiguousarray(
+                ferguson.table_at(X, Z, alpha=alpha))
         own_T, own_R = opal.axes()
         block = opal.table_at(X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
         # OPAL's published tables are blank in two corners. Carry the nearest
@@ -296,7 +300,26 @@ class Opacity:
         return f"Opacity(X={p['X']:.4f}, Z={p['Z']:.4f}, cold={p['cold']!r})"
 
 
-def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
+def _check_alpha(cold, alpha):
+    """Validate `alpha` against the cold source, and warn where it is idle.
+
+    Returns the value to record, which is None wherever no alpha-enhanced
+    table is read.
+    """
+    if cold != "ferguson":
+        if alpha not in (None, ferguson.DEFAULT_ALPHA):
+            warnings.warn(
+                "alpha=%g was given with cold=%r, which carries no alpha "
+                "enhancement, so it was ignored. Alpha enhancement reaches "
+                "the opacity only through cold='ferguson'." % (alpha, cold),
+                stacklevel=3)
+        return None
+    ferguson._key(alpha)          # raises CoverageError on an untabulated value
+    return None if alpha is None else float(alpha)
+
+
+def opacity(X=0.7381, Z=0.0134, cold="semenov",
+            opal_set=opal.DEFAULT_OPAL_SET, alpha=ferguson.DEFAULT_ALPHA,
             dXc=0.0, dXo=0.0):
     """Build a callable opacity at one composition.
 
@@ -311,6 +334,16 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
     opal_set : str, optional
         Which OPAL file supplies the hot opacity, from
         `rm_tables.sources.opal.sets()`. Selects the metal mixture.
+    alpha : float or None, optional
+        Alpha enhancement of the cold Ferguson opacity: oxygen, magnesium and
+        silicon against iron, at fixed total metal fraction. One of the six
+        values `rm_tables.sources.ferguson.alphas` lists, or None for the
+        Grevesse & Noels 1993 set. It reaches the dust and molecular opacity
+        only; above 10,000 K the hot source answers and `opal_set` selects its
+        mixture. That split costs 0.015 dex, measured between OPAL's own
+        enhanced and unenhanced tables, against 0.189 dex for the same
+        enhancement in the dust band. Ignored with a warning when `cold` is
+        ``'semenov'``, whose coefficients carry no such parameter.
     dXc, dXo : float, optional
         Carbon and oxygen mass fractions beyond those in `Z`. Must be a pair
         the chosen set tabulates; `rm_tables.sources.opal.excess()` lists them.
@@ -324,8 +357,9 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
     Raises
     ------
     rm_tables.coverage.CoverageError
-        If `X` and `Z` leave helium negative, or if `Z` is outside what the
-        chosen set tabulates.
+        If `X` and `Z` leave helium negative, if `Z` is outside what the
+        chosen set tabulates, or if `alpha` is not one of the six tabulated
+        enhancements.
     ValueError
         If no pair of tabulated hydrogen fractions brackets `X` at that
         metallicity. `CoverageError` subclasses `ValueError` too, so one
@@ -346,21 +380,26 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
     >>> T = np.array([500.0, 3000.0, 1e5])
     >>> rho = np.array([1.25e-19, 2.7e-17, 1e-16])
     >>> np.round(kappa(T, rho), 5)
-    array([1.75354e+00, 6.00000e-05, 4.46020e-01])
+    array([1.75354e+00, 6.00000e-05, 4.51230e-01])
     """
     X, Z = float(X), float(Z)
     check_composition(X, Z, opal_set)
     if cold not in ("semenov", "ferguson"):
         raise KeyError(f"unknown cold source {cold!r}. "
                        f"Available: 'semenov', 'ferguson'.")
+    alpha = _check_alpha(cold, alpha)
     provenance = {
         "X": X, "Y": 1.0 - X - Z, "Z": Z, "cold": cold,
         "cold_reference": (ferguson.REFERENCE if cold == "ferguson"
                            else semenov.REFERENCE),
         "hot_reference": opal.REFERENCE,
-        "opal_set": opal_set, "dXc": float(dXc), "dXo": float(dXo),
+        "opal_set": opal_set,
+        "cold_set": (ferguson.set_name(alpha) if cold == "ferguson"
+                     else "semenov"),
+        "dXc": float(dXc), "dXo": float(dXo),
         "reference_Z": (ferguson.REFERENCE_Z if cold == "ferguson"
                         else semenov.REFERENCE_Z),
         "units": "cm^2/g",
     }
-    return Opacity(X, Z, cold, provenance, opal_set, float(dXc), float(dXo))
+    return Opacity(X, Z, cold, provenance, opal_set, float(dXc), float(dXo),
+                   alpha)

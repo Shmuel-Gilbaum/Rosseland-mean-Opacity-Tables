@@ -28,9 +28,26 @@ The data ships inside the package, so nothing is downloaded at run time.
 The caller chooses one of Semenov or Ferguson for the cold end.
 
 **OPAL** ships as all 77 published Type-1 files, 6766 tables between them, on a
-grid of hydrogen and metal mass fraction. The default is `GN93hz`, at Grevesse
-& Noels 1993 metal ratios. Obtained from Arnold Boothroyd's public mirror at
-the Canadian Institute for Theoretical Astrophysics.
+grid of hydrogen and metal mass fraction. The default is `GS98hz`, at Grevesse
+& Sauval 1998 metal ratios, matching the cold default. `GN93hz` is the same at
+Grevesse & Noels 1993 ratios and differs by a median 0.002 dex. Obtained from
+Arnold Boothroyd's public mirror at the Canadian Institute for Theoretical
+Astrophysics.
+
+**Ferguson** ships as seven sets of 155 tables. Six are at Grevesse & Sauval
+1998 metal ratios, at alpha enhancements of -0.2, 0.0, 0.2, 0.4, 0.6 and 0.8,
+selected with `alpha`; the default is 0.0. Alpha enhancement raises oxygen,
+magnesium and silicon against iron at fixed total metal fraction, which no
+choice of `X` and `Z` can reach. It moves the dust opacity by 0.054 to 0.079
+dex per step and the whole table by 0.189 dex at 0.8, against 0.025 dex for
+swapping the abundance compilation. The seventh set is `f05.g93` at Grevesse &
+Noels 1993 ratios, reached with `alpha=None`, and was this package's only cold
+Ferguson table before the alpha sets were added.
+
+Alpha reaches the dust and molecular opacity only. Above 10,000 K the hot
+source answers and `opal_set` selects its mixture; OPAL's own enhanced and
+unenhanced tables differ by 0.015 dex, so nothing there is chosen for the
+caller.
 
 **Semenov** ships as a Python translation of the published `opacity.f`, dust
 model `nrm/h/s`: normal iron content, homogeneous, spherical. Its dust opacity
@@ -59,14 +76,15 @@ import numpy as np
 import rm_tables
 
 kappa = rm_tables.opacity(X=0.7381, Z=0.0134, cold="semenov",
-                          opal_set="GN93hz", dXc=0.0, dXo=0.0)
+                          opal_set="GS98hz", alpha=0.0, dXc=0.0, dXo=0.0)
 print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
 `X` and `Z` are the hydrogen and metal mass fractions and helium is the
 remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source, `opal_set`
-picks which of OPAL's 77 published files supplies the hot end, and `dXc` and
-`dXo` add carbon and oxygen beyond what `Z` carries.
+picks which of OPAL's 77 published files supplies the hot end, `alpha` picks the
+alpha enhancement of the cold Ferguson tables, and `dXc` and `dXo` add carbon
+and oxygen beyond what `Z` carries.
 
 A composition outside what the chosen set tabulates raises rather than
 extrapolating.
@@ -75,7 +93,7 @@ extrapolating.
 try:
     rm_tables.opacity(X=0.0, Z=0.5)
 except ValueError as e:
-    print(e)    # -> set 'GN93hz' tabulates metals up to 0.1, and Z=0.5 was ...
+    print(e)    # -> set 'GS98hz' tabulates metals up to 0.1, and Z=0.5 was ...
 ```
 
 Arrays broadcast against each other and the result takes the broadcast shape.
@@ -83,7 +101,7 @@ Arrays broadcast against each other and the result takes the broadcast shape.
 ```python
 T = np.array([500.0, 3000.0, 1e5])
 rho = np.array([1.25e-19, 1e-14, 1e-16])
-print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
+print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.5123...e-01]
 ```
 
 A compiled solver cannot call the object, because numba refuses a Python

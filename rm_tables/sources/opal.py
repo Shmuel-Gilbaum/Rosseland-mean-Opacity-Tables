@@ -3,8 +3,10 @@
 Iglesias & Rogers 1996, ApJ 464, 943.
 
 The 77 shipped OPAL Type-1 files hold 6766 tables between them. Each file is a
-*set*, and ``GN93hz`` is the default: 126 compositions on a grid of hydrogen
-and metal mass fraction, at Grevesse & Noels 1993 metal ratios. The other sets
+*set*, and ``GS98hz`` is the default: 126 compositions on a grid of hydrogen
+and metal mass fraction, at Grevesse & Sauval 1998 metal ratios, matching the
+cold source's default. ``GN93hz`` is the same at Grevesse & Noels 1993 ratios
+and differs by a median 0.002 dex. The other sets
 carry other solar abundance patterns, CNO-processed metal ratios, and excess
 carbon and oxygen. :func:`sets` lists them.
 
@@ -36,7 +38,7 @@ __all__ = ["table_at", "grid", "axes", "compositions", "excess", "sets",
 
 REFERENCE = "Iglesias & Rogers 1996, ApJ 464, 943"
 
-DEFAULT_OPAL_SET = "GN93hz"
+DEFAULT_OPAL_SET = "GS98hz"
 
 _ARCHIVE = None
 _CACHE = {}

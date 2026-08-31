@@ -10,7 +10,7 @@ import pytest
 import rm_tables
 from rm_tables.sources import opal
 
-ALTERNATIVES = ["GS98hz", "AGS04hz", "W95hz"]
+ALTERNATIVES = ["GN93hz", "AGS04hz", "W95hz"]
 
 
 def test_every_shipped_set_is_readable():
@@ -42,10 +42,10 @@ def test_the_builder_takes_a_set_and_the_hot_grid_moves(name):
 
 
 def test_the_default_set_is_what_was_built_before_the_argument_existed():
-    """Naming the default explicitly must change nothing, or every table built
-    before this argument existed can no longer be reproduced."""
+    """Naming the default explicitly must change nothing, or a table cannot be
+    reproduced from the set its provenance records."""
     a = rm_tables.build(n_T=30, n_R=20)
-    b = rm_tables.build(n_T=30, n_R=20, opal_set="GN93hz")
+    b = rm_tables.build(n_T=30, n_R=20, opal_set=opal.DEFAULT_OPAL_SET)
     assert np.array_equal(a.cold, b.cold)
     assert np.array_equal(a.hot, b.hot)
 

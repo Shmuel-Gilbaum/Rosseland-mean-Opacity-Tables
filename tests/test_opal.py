@@ -90,7 +90,7 @@ def test_grevesse_sauval_1998_differs_from_grevesse_noels_1993():
     log_T, log_R = opal.axes()
     i = int(np.argmin(np.abs(log_T - 6.4)))
     j = int(np.argmin(np.abs(log_R + 1.5)))
-    gn93 = opal.table_at(0.7, 0.02)[i, j]
+    gn93 = opal.table_at(0.7, 0.02, opal_set="GN93hz")[i, j]
     gs98 = opal.table_at(0.7, 0.02, opal_set="GS98hz")[i, j]
     assert abs(gs98 - gn93) > 1e-3
     assert abs(gs98 - gn93) < 0.1, "a different metal mix, not a different table"
@@ -101,7 +101,7 @@ def test_a_carbon_rich_set_matches_the_default_where_it_carries_no_excess():
     Its dXc = dXo = 0 corner is the same composition as GN93hz there."""
     X, Z = opal.compositions("Gz020.x70")
     assert np.unique(Z).size == 1
-    plain = opal.table_at(0.7, 0.02)
+    plain = opal.table_at(0.7, 0.02, opal_set="GN93hz")
     corner = opal.table_at(0.7, 0.02, opal_set="Gz020.x70")
     both = np.isfinite(plain) & np.isfinite(corner)
     assert np.abs(plain[both] - corner[both]).max() < 1e-6

@@ -29,7 +29,7 @@ Arrays broadcast against each other and the result takes the broadcast shape.
 ```python
 T = np.array([500.0, 3000.0, 1e5])
 rho = np.array([1.25e-19, 1e-14, 1e-16])
-print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
+print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.5123...e-01]
 ```
 
 A column of temperatures against a row of densities gives the rectangle.
@@ -93,7 +93,7 @@ Ferguson, as in an atmosphere.
 
 ```python
 print(rm_tables.opacity(cold="semenov")(700.0, 1e-14))     # -> 1.3268899275683468
-print(rm_tables.opacity(cold="ferguson")(700.0, 1e-14))    # -> 0.5117060620278185
+print(rm_tables.opacity(cold="ferguson")(700.0, 1e-14))    # -> 0.5447430109726219
 ```
 
 Two Rosseland means cannot be averaged, so the package offers no mixture.
@@ -127,7 +127,69 @@ for name in ("GN93hz", "GS98hz", "AGS04hz", "W95hz"):
 # -> W95hz     0.885030
 ```
 
-The default is `GN93hz`, at Grevesse & Noels 1993 metal ratios.
+The default is `GS98hz`, at Grevesse & Sauval 1998 metal ratios. `GN93hz` is
+the same mixture as revised in 1993 and differs by a median 0.002 dex.
+
+## Alpha enhancement
+
+Alpha enhancement is the abundance of oxygen, magnesium and silicon against
+iron, at fixed total metal fraction. No choice of `X` and `Z` reaches it, since
+those set how much metal there is and not which metals. Ferguson computed a
+separate set of 155 tables at each of six enhancements, and all six ship.
+
+```python
+from rm_tables.sources import ferguson
+
+print(ferguson.alphas())     # -> [-0.2  0.   0.2  0.4  0.6  0.8]
+```
+
+`alpha` selects one. Raising it lowers the dust opacity, because the metal
+fraction is held fixed, so more oxygen, magnesium and silicon means less iron,
+and iron is a major grain opacity carrier.
+
+```python
+for a in ferguson.alphas():
+    print("%+.1f  %.6f" % (a, rm_tables.opacity(cold="ferguson", alpha=a)(800.0, 1e-12)))
+
+# -> -0.2  0.635919
+# -> +0.0  0.569248
+# -> +0.2  0.486439
+# -> +0.4  0.436135
+# -> +0.6  0.354785
+# -> +0.8  0.304262
+```
+
+The default is 0.0. Those six sets are at Grevesse & Sauval 1998 metal ratios.
+`alpha=None` selects `f05.g93`, at Grevesse & Noels 1993 ratios, which was this
+package's only cold Ferguson table before the others were added.
+
+```python
+print(rm_tables.opacity(cold="ferguson", alpha=None)(800.0, 1e-12))  # -> 0.5331353949488168
+```
+
+The six are separate calculations rather than points on an axis this package
+interpolates, so an untabulated enhancement raises.
+
+```python
+try:
+    rm_tables.opacity(cold="ferguson", alpha=0.3)
+except rm_tables.coverage.CoverageError as e:
+    print(e)    # -> Ferguson tabulates alpha enhancement at -0.2, 0.0, 0.2, ...
+```
+
+Alpha reaches the dust and molecular opacity only. Above 10,000 K the hot
+source answers and `opal_set` selects its mixture. OPAL's own enhanced and
+unenhanced tables differ by 0.015 dex there, against 0.189 dex for the same
+enhancement across the cold table, so the hot end is left to `opal_set` rather
+than moved on the caller's behalf. Semenov carries no alpha enhancement, and
+passing one with `cold="semenov"` warns and is ignored.
+
+The set actually read is in the provenance.
+
+```python
+print(rm_tables.opacity(cold="ferguson", alpha=0.6).provenance["cold_set"])
+# -> f05.gs98+.6
+```
 
 Carbon and oxygen beyond what `Z` carries are `dXc` and `dXo`. Those grids live
 in OPAL's fixed-composition files, whose hydrogen and metal fractions come from
@@ -303,7 +365,7 @@ print(pair.hot_log_R[-1])        # -> 1.0
 
 ```python
 print(pair.kappa(np.array([3e3, 1e5]), np.array([1e-14, 1e-16])))
-# -> [5.7967...e-05 4.5762...e-01]
+# -> [5.7967...e-05 4.6252...e-01]
 ```
 
 Fitting a smoother interpolant means fitting one per grid and choosing between
@@ -418,8 +480,8 @@ source `cold` names. A published result cites both, and this package.
 | cold opacity, `cold="ferguson"` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
 
 A result that depends on the metal mixture rather than on the metal mass
-fraction alone carries one more. The default OPAL set `GN93hz` is at Grevesse
-& Noels 1993 ratios,
+fraction alone carries one more. The default OPAL set `GS98hz` is at Grevesse
+& Sauval 1998 ratios, as are the six alpha-enhanced Ferguson sets,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract).
 `rm_tables.sources.opal.sets()` names the other sets, each carrying its own
 mixture. Semenov's coefficients are computed at Anders &

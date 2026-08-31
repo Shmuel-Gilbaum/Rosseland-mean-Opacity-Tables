@@ -13,6 +13,7 @@ import math
 import numpy as np
 
 from .coverage import _BY_NAME, CoverageError, covers, check_composition
+from .lookup import _check_alpha
 from .sources import ferguson, opal, semenov
 
 __all__ = ["Tables", "build"]
@@ -331,7 +332,8 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
           log_T_range=(math.log10(5.0), 7.1), log_R_range=(-8.0, -0.25),
           hot_log_R_max=1.0, n_T=200, n_R=500, split_log_T=4.0,
           allow_split=True,
-          opal_set="GN93hz", dXc=0.0, dXo=0.0):
+          opal_set=opal.DEFAULT_OPAL_SET, alpha=ferguson.DEFAULT_ALPHA,
+          dXc=0.0, dXo=0.0):
     """Build a cold and a hot opacity table at one composition.
 
     Parameters
@@ -379,6 +381,10 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
         Whether splitting into two grids is permitted. It is never forced: a
         range one grid covers comes back as one grid either way. False
         requires a single grid and raises instead.
+    alpha : float or None, optional
+        Alpha enhancement of the cold Ferguson opacity, as in
+        `rm_tables.opacity`. Ignored with a warning when `cold` is
+        ``'semenov'``.
     opal_set : str, optional
         Which OPAL file supplies the hot opacity, from
         `rm_tables.sources.opal.sets()`. Selects the metal mixture.
@@ -435,6 +441,7 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     allow_split = bool(allow_split)
     source = _COLD_SOURCES[cold]
     check_composition(X, Z, opal_set)
+    alpha = _check_alpha(cold, alpha)
 
     # A descending or zero-width axis silently breaks every lookup: the reader
     # clips and searches assuming ascending order. Refuse both here rather than
@@ -484,11 +491,12 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
         _check_or_advise(("opal",), log_T[log_T >= split_log_T], log_R,
                          split_log_T, hot_log_R_max)
 
-    block = _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo)
+    block = _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo,
+                      alpha)
     built_R = (float(log_R[0]), float(log_R[-1]))
     provenance = _provenance(X, Z, cold, source, n_T, n_R, log_T_range,
                              built_R, hot_log_R_max, split_log_T, single,
-                             opal_set, dXc, dXo)
+                             opal_set, dXc, dXo, alpha)
     provenance["log_R_range_requested"] = (float(log_R_range[0]),
                                            float(log_R_range[1]))
     if not _cold_contributed(log_T):
@@ -519,10 +527,11 @@ def _cold_contributed(log_T):
     return bool(np.any(np.asarray(log_T) < RAMP_LOG_T[1]))
 
 
-def _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo):
+def _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo,
+              alpha=ferguson.DEFAULT_ALPHA):
     """The cold source below OPAL's floor, ramped into OPAL across the overlap."""
     if cold == "ferguson":
-        below = source.grid(log_T, log_R, X, Z)
+        below = source.grid(log_T, log_R, X, Z, alpha=alpha)
     else:
         below = source.grid(log_T, log_R, Z)
     above = opal.grid(log_T, log_R, X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
@@ -547,14 +556,18 @@ def _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo):
 
 
 def _provenance(X, Z, cold, source, n_T, n_R, log_T_range, log_R_range,
-                hot_log_R_max, split_log_T, single, opal_set, dXc, dXo):
+                hot_log_R_max, split_log_T, single, opal_set, dXc, dXo,
+                alpha=None):
     """Everything needed to reproduce a build."""
     return {
         "X": X, "Y": 1.0 - X - Z, "Z": Z,
         "cold": cold,
         "cold_reference": source.REFERENCE,
         "hot_reference": opal.REFERENCE,
-        "opal_set": opal_set, "dXc": float(dXc), "dXo": float(dXo),
+        "opal_set": opal_set,
+        "cold_set": (ferguson.set_name(alpha) if cold == "ferguson"
+                     else "semenov"),
+        "dXc": float(dXc), "dXo": float(dXo),
         "reference_Z": source.REFERENCE_Z,
         "n_T": n_T, "n_R": n_R,
         "log_T_range": tuple(float(v) for v in log_T_range),

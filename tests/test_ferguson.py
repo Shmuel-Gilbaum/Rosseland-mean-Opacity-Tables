@@ -46,7 +46,7 @@ def test_the_grid_returns_nan_outside_rather_than_extrapolating():
     out = ferguson.grid(np.array([2.0, 3.0]), np.array([-8.0, 5.0]), 0.7, 0.02)
     assert np.isnan(out[0, 0]), "2.0 is below Ferguson's temperature floor"
     assert np.isnan(out[1, 1]), "+5.0 is above Ferguson's density ceiling"
-    assert out[1, 0] == pytest.approx(-1.606, abs=1e-3)
+    assert out[1, 0] == pytest.approx(-1.569, abs=1e-3)
 
 
 def test_it_reaches_the_top_of_the_density_axis_at_every_temperature():
@@ -84,7 +84,7 @@ def test_the_two_cold_sources_disagree_in_the_dust_regime():
     """
     f = rm_tables.opacity(cold="ferguson")
     s = rm_tables.opacity(cold="semenov")
-    assert f(501.2, 1e-14) == pytest.approx(0.45509, rel=1e-3)
+    assert f(501.2, 1e-14) == pytest.approx(0.48253, rel=1e-3)
     assert s(501.2, 1e-14) == pytest.approx(1.75555, rel=1e-3)
 
 
@@ -108,7 +108,7 @@ def test_the_two_cold_sources_agree_exactly_where_opal_answers():
     s = rm_tables.opacity(cold="semenov")
     for T, rho in ((1e5, 1e-10), (1e5, 1e-8), (1e6, 1e-8)):
         assert f(T, rho) == s(T, rho)
-    assert f(1e5, 1e-10) == pytest.approx(0.468214, rel=1e-5)
+    assert f(1e5, 1e-10) == pytest.approx(0.472332, rel=1e-5)
 
 
 def test_the_provenance_names_ferguson_when_ferguson_is_chosen():
