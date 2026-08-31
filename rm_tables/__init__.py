@@ -7,7 +7,7 @@ wants to fit their own interpolant or write the result to a file.
 Sources are used as their authors published them. OPAL supplies the ionised gas
 above 5623 K; either Semenov 2003 or Ferguson 2005 supplies dust and molecules
 below. The two cold sources are alternatives and are never combined; the README
-says which to choose. Both entry points take a `opal_set` naming the OPAL file,
+says which to choose. Both entry points take an `opal_set` naming the OPAL file,
 which sets the metal mixture, and the excess carbon and oxygen that file
 tabulates.
 

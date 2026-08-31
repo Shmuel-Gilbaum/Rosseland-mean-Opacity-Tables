@@ -144,6 +144,9 @@ def _check_or_advise(sources, log_T, log_R, split_log_T, hot_log_R_max,
 class Tables:
     """A cold table, a hot table, and the record of how they were made.
 
+    `Tables.kappa` reads them, as ``kappa(T, rho)``: the temperature in K
+    first and the density in g/cm^3 second, returning cm^2/g.
+
     Attributes
     ----------
     cold_log_T, cold_log_R, cold : ndarray
@@ -218,10 +221,12 @@ class Tables:
         median 0.001 dex, and one temperature of the 200 is out by 0.709 dex.
         A point 1.25 decades past reads to a median 0.004 dex with 18 of the
         200 out by more than 0.5. The bad ones sit where dust is being
-        destroyed and the opacity falls steeply with density. `rm_tables.opacity`
-        reads the source rather than a grid and answers there: Semenov reaches
-        ``log10 R`` of 1.47 at 1500 K where a default grid stops at -0.25. Anything needing a smoother interpolant should fit its own spline
-        to `cold` and `hot` and use `is_hot` to choose between them.
+        destroyed and the opacity falls steeply with density.
+        `rm_tables.opacity` reads the source rather than a grid and answers
+        there: Semenov reaches ``log10 R`` of 1.47 at 1500 K where a default
+        grid stops at -0.25. Anything needing a smoother interpolant should
+        fit its own spline to `cold` and `hot` and use `is_hot` to choose
+        between them.
 
         Parameters
         ----------
@@ -234,6 +239,11 @@ class Tables:
         -------
         float or ndarray
             Opacity in cm^2/g, of the same shape as the broadcast inputs.
+
+        Raises
+        ------
+        CoverageError
+            If a temperature or a density is not finite and positive.
 
         Examples
         --------
@@ -288,6 +298,22 @@ class Tables:
             any language can read, ``.h5`` or ``.hdf5`` for HDF5.
         fmt : {'numpy', 'text', 'hdf5'}, optional
             Overrides the extension.
+
+        Raises
+        ------
+        ValueError
+            If neither the extension nor `fmt` names a format.
+        ImportError
+            If HDF5 was asked for and `h5py` is not installed.
+
+        Notes
+        -----
+        Every format loses precision. ``.npz`` and ``.h5`` store the opacity as
+        32-bit floats and ``.txt`` writes six decimals, which on a round trip
+        of a 40 by 25 build cost at most 2.4e-07, 2.4e-07 and 5.0e-07 in
+        ``log10`` opacity. Provenance tuples come back as lists from ``.npz``
+        and ``.h5``, so a loaded pair does not compare equal to the built one
+        on provenance.
         """
         from .io import save as _save
         _save(self, path, fmt)
@@ -320,7 +346,8 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     log_T_range : tuple of float, optional
         Lowest and highest ``log10`` temperature in K. The hot table shares the
         ceiling and starts at the ramp, ``log10 T = 3.75``. The floor 5 K is
-        Semenov's lowest tabulated temperature. The ceiling reaches
+        Semenov's lowest tabulated temperature. The default ceiling 7.1 is
+        12.6 million K. The highest that can be asked for is
         ``log10 T = 8.6999998``, the last value OPAL's axis holds; that axis is
         stored in 32-bit floats, so 8.70 falls outside it.
     log_R_range : tuple of float, optional
@@ -369,8 +396,10 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     ------
     CoverageError
         If the requested range leaves what the chosen sources hold, or if it
-        needs splitting and `split` is False. The message names the offending
-        corner and any source that would cover it.
+        needs splitting and `allow_split` is False. The message names the
+        offending corner and any source that would cover it. Also if `n_T` or
+        `n_R` is below 2, if either range does not ascend, or if
+        `hot_log_R_max` does not exceed the density floor.
     KeyError
         If `cold` is not a known source.
 

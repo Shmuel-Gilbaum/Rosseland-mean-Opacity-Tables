@@ -15,7 +15,12 @@ __all__ = ["Coverage", "CoverageError", "OPAL", "FERGUSON", "SEMENOV",
 
 
 class CoverageError(ValueError):
-    """A requested temperature or density lies outside every chosen source."""
+    """A request the chosen sources cannot answer.
+
+    Raised for a temperature or density outside every source, for a
+    composition outside what the OPAL set tabulates, and for a `build`
+    argument that describes no grid.
+    """
 
 
 class Coverage:
@@ -180,8 +185,7 @@ def check_composition(X, Z, opal_set):
         pair lies outside what the chosen set tabulates. OPAL interpolates
         linearly in hydrogen and in the logarithm of the metallicity, and
         continues that straight line past its own edge, so a request outside
-        returns a number with nothing behind it. Hydrogen of 1.5 returns
-        5.5e-136 cm^2/g at 1e5 K.
+        would return a number with nothing behind it.
     """
     from .sources import opal
     X, Z = float(X), float(Z)

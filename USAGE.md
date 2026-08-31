@@ -20,7 +20,9 @@ kappa = rm_tables.opacity()
 print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
-Temperature is in K, density in g/cm^3, and the result in cm^2/g.
+The call is `kappa(T, rho)`: the temperature in K first, the density in
+g/cm^3 second, and the result in cm^2/g. Both arguments are plain numbers, so
+a swap cannot be detected and gives an opacity that is silently wrong.
 
 Arrays broadcast against each other and the result takes the broadcast shape.
 
@@ -56,10 +58,11 @@ monochromatic opacity scales the mean by the same factor. That holds at fixed
 grain sizes and mineralogy, which no argument here changes. It applies to the
 dust alone; the gas keeps its tabulated values.
 
-The default set tabulates metals from 0 to 0.1, at nine hydrogen fractions from
-0 to 0.95. Above 0.95 it holds one table per hydrogen fraction, the helium-free
-one, so 0.97 exists only with metals at 0.03. A request that no pair brackets
-raises, as does a pair leaving helium negative.
+The default set tabulates metals from 0 to 0.1 at eight hydrogen fractions,
+0 to 0.9. Hydrogen of 0.95 reaches metals of 0.04. Otherwise above 0.9 it holds
+one table per hydrogen fraction, the helium-free one where `X + Z = 1`, so 0.97
+exists only with metals at 0.03. A request that no pair brackets raises, as
+does a pair leaving helium negative. Both raise a `ValueError`.
 
 ```python
 try:
@@ -142,14 +145,16 @@ does not hold raises and names the set.
 
 ## Which entry point to use
 
-`opacity` reads the sources at every call and suits work driven from Python:
-one-off values, a plot, a sweep over arrays. On arrays it costs 246 ns a point.
-One point at a time from Python costs 6,841 ns, almost all of it Python
-overhead.
+`opacity` reads the sources rather than a grid of this package's choosing, and
+suits work driven from Python: one-off values, a plot, a sweep over arrays. The
+OPAL interpolation and Ferguson's grid are read once, when the callable is
+built; only Semenov's polynomial is evaluated per point. On arrays it costs
+246 ns a point. One point at a time from Python costs 6,841 ns, almost all of
+it Python overhead.
 
 A compiled solver cannot call the object: numba refuses a Python object holding
-Python arrays. `Opacity.compiled` returns the same opacity as a numba function,
-which can.
+Python arrays. `Opacity.as_compiled` returns the same opacity as a numba
+function, which can.
 
 ```python
 import numpy as np
@@ -252,8 +257,8 @@ print(small.cold_log_R[-1])     # -> -2.0
 ```
 
 Both ranges describe the cold grid. The hot grid runs from OPAL's floor of
-5623 K to the same ceiling, over its own density range, whose top is
-`hot_log_R_max`.
+5623 K to the same ceiling, over its own density range, whose top is the
+`hot_log_R_max` argument, 1.0 by default.
 
 The resolution changes the table. Semenov's dust destruction spans 192 K, which
 is two and a half cells at the default grid, so the tabulated cliff is gentler
@@ -370,7 +375,7 @@ except ValueError as e:
 `opacity` holds the nearest value past a density edge, matching what a
 tabulated grid does past its own span. A temperature no source reaches raises
 instead, because holding across a temperature edge would return a dust opacity
-for an ionised gas. `Opacity.compiled` returns NaN at those same bounds.
+for an ionised gas. `Opacity.as_compiled` returns NaN at those same bounds.
 
 ```python
 try:
@@ -416,8 +421,8 @@ A result that depends on the metal mixture rather than on the metal mass
 fraction alone carries one more. The default OPAL set `GN93hz` is at Grevesse
 & Noels 1993 ratios,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract).
-The mixtures behind the other sets are named in the docstring of
-`rm_tables.sources.opal.sets`. Semenov's coefficients are computed at Anders &
+`rm_tables.sources.opal.sets()` names the other sets, each carrying its own
+mixture. Semenov's coefficients are computed at Anders &
 Grevesse 1989,
 [1989GeCoA..53..197A](https://ui.adsabs.harvard.edu/abs/1989GeCoA..53..197A/abstract),
 and a requested metallicity is scaled from that composition.

@@ -49,9 +49,10 @@ Requires NumPy and Numba. `h5py` is needed only to read and write HDF5 files.
 
 ## Usage
 
-A temperature in K and a density in g/cm^3 give an opacity in cm^2/g. Every
-argument below is optional and is written at its default, so `rm_tables.opacity()`
-is the same call.
+Every opacity in this package is called as `kappa(T, rho)`: the temperature in
+K first, the density in g/cm^3 second, returning cm^2/g. Both arguments are
+plain numbers, so a swap cannot be detected. Every argument below is optional
+and is written at its default, so `rm_tables.opacity()` is the same call.
 
 ```python
 import numpy as np
@@ -86,7 +87,7 @@ print(kappa(T, rho))    # -> [1.7535...e+00 6.6356...e-05 4.4602...e-01]
 ```
 
 A compiled solver cannot call the object, because numba refuses a Python
-object holding Python arrays. `compiled` returns the same opacity as a numba
+object holding Python arrays. `as_compiled` returns the same opacity as a numba
 function, at 157 ns a point. A compiled function cannot raise, so it returns
 NaN where the object raises.
 
@@ -113,7 +114,8 @@ print(t.cold.shape, t.hot.shape)    # -> (200, 500) (200, 500)
 
 `build` takes the same six arguments and seven more, all optional, for the
 range, the resolution and how the pair is split. The ranges are in `log10`, and
-`log10 R` is `rho / (T / 1e6)**3` in g/cm^3.
+`R` is `rho / (T / 1e6)**3` in g/cm^3, the density parameter rather than the
+density.
 
 ```python
 t2 = rm_tables.build(log_T_range=(2.0, 6.0), log_R_range=(-8.0, -2.0),
@@ -177,15 +179,17 @@ package.
 | cold opacity, `cold="semenov"` | Semenov et al. 2003, A&A 410, 611 | [2003A&A...410..611S](https://ui.adsabs.harvard.edu/abs/2003A%26A...410..611S/abstract) |
 | cold opacity, `cold="ferguson"` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
 
-OPAL supplies every opacity above 5623 K, so it is cited whatever the cold
-source is. One cold source is read per call, and the `cold` argument names it.
+OPAL is read at every temperature above 5623 K, so it is cited whatever the
+cold source is. From 5623 to 10,000 K the answer is a blend in `log10` of the
+cold source and OPAL; above 10,000 K OPAL is alone. One cold source is read per
+call, and the `cold` argument names it.
 
 Two composition references apply where a result depends on the metal mixture
 rather than on the metal mass fraction alone. The default OPAL set `GN93hz` is
 at Grevesse & Noels 1993 ratios,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract);
-the other sets carry their own mixture, listed by
-`rm_tables.sources.opal.sets`. Semenov's coefficients are computed at Anders &
+the other sets carry their own mixture, and
+`rm_tables.sources.opal.sets()` names them. Semenov's coefficients are computed at Anders &
 Grevesse 1989,
 [1989GeCoA..53..197A](https://ui.adsabs.harvard.edu/abs/1989GeCoA..53..197A/abstract),
 which is the composition a requested metallicity is scaled from.

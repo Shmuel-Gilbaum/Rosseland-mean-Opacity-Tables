@@ -11,8 +11,12 @@ reaches raises instead. Semenov reports "no value" as a zero, and a zero is
 never returned as an opacity. OPAL's tables are blank in two corners, and the
 value there is carried in from the nearest tabulated density.
 
-Per call over an array of 200,000 points, compiled: 168 ns through Semenov, 102
-ns through OPAL.
+One signature everywhere in this package: ``kappa(T, rho)``, the temperature in
+K first and the density in g/cm^3 second, returning cm^2/g. Both are plain
+numbers, so a swap cannot be detected.
+
+Per point, inside one call over an array of 200,000 points, compiled: 168 ns
+through Semenov and 102 ns through OPAL.
 """
 import numpy as np
 from numba import njit as _njit
@@ -85,7 +89,8 @@ def _kappa_over_gridded(cold_T, cold_R, cold_k, opal_T, opal_R, opal_k,
 class Opacity:
     """A callable opacity at one composition.
 
-    Call it with scalars or arrays.
+    Called as ``kappa(T, rho)``, the temperature in K first and the density in
+    g/cm^3 second, returning cm^2/g. Scalars or arrays.
 
     Attributes
     ----------
@@ -174,7 +179,8 @@ class Opacity:
         Raises
         ------
         CoverageError
-            If a temperature falls outside what the chosen sources hold.
+            If a temperature falls outside what the chosen sources hold, or if
+            a density is not finite and positive.
         """
         Ta, ra = np.broadcast_arrays(np.asarray(T, float), np.asarray(rho, float))
         self._check_temperature(Ta)
@@ -235,9 +241,9 @@ class Opacity:
 
         Notes
         -----
-        A compiled function cannot raise `rm_tables.CoverageError`, so the
-        refusal that the object makes an exception is a NaN here. The bounds
-        are the same on both paths.
+        A compiled function cannot raise `rm_tables.coverage.CoverageError`,
+        so the refusal that the object makes an exception is a NaN here. The
+        bounds are the same on both paths.
 
         Inside a compiled loop this costs 157 ns a point, against 246 ns for
         calling the object on arrays and 513 ns for a bicubic spline fitted to
@@ -312,7 +318,20 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov", opal_set="GN93hz",
     Returns
     -------
     Opacity
-        Call it with a temperature in K and a density in g/cm^3.
+        Called as ``kappa(T, rho)``, the temperature in K first and the
+        density in g/cm^3 second, returning cm^2/g.
+
+    Raises
+    ------
+    rm_tables.coverage.CoverageError
+        If `X` and `Z` leave helium negative, or if `Z` is outside what the
+        chosen set tabulates.
+    ValueError
+        If no pair of tabulated hydrogen fractions brackets `X` at that
+        metallicity. `CoverageError` subclasses `ValueError` too, so one
+        ``except ValueError`` catches every composition refusal.
+    KeyError
+        If `cold` is neither ``'semenov'`` nor ``'ferguson'``.
 
     Examples
     --------
