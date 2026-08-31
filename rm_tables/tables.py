@@ -13,7 +13,7 @@ import math
 import numpy as np
 
 from .coverage import _BY_NAME, CoverageError, covers, check_composition
-from .lookup import _check_alpha
+from .lookup import _check_alpha, _resolve_cold, COLD_SOURCES
 from .sources import ferguson, opal, semenov
 
 __all__ = ["Tables", "build"]
@@ -340,8 +340,10 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     ----------
     X, Z : float, optional
         Hydrogen and metal mass fractions. Helium is the remainder.
-    cold : {'semenov', 'ferguson'}, optional
-        Cold source. The two are never combined. Semenov gives evaporation
+    cold : {'semenov', 'ferguson', 'ferguson-gs98', 'ferguson-g93'}, optional
+        Cold source, and for Ferguson the abundance compilation, as in
+        `rm_tables.opacity`. ``'ferguson'`` is ``'ferguson-gs98'``, which pairs
+        with the default OPAL set. The two sources are never combined. Semenov gives evaporation
         temperatures and Ferguson gives condensation temperatures, so Semenov
         suits material that is heating and Ferguson material that is cooling.
         Ferguson reaches a higher density but stops at 501 K.
@@ -384,7 +386,8 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     alpha : float or None, optional
         Alpha enhancement of the cold Ferguson opacity, as in
         `rm_tables.opacity`. Ignored with a warning when `cold` is
-        ``'semenov'``.
+        ``'semenov'``, and raises on ``'ferguson-g93'``, which has no
+        enhanced tables.
     opal_set : str, optional
         Which OPAL file supplies the hot opacity, from
         `rm_tables.sources.opal.sets()`. Selects the metal mixture.
@@ -439,9 +442,10 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     n_T, n_R = int(n_T), int(n_R)
     split_log_T = float(split_log_T)
     allow_split = bool(allow_split)
-    source = _COLD_SOURCES[cold]
+    source_name, compilation = _resolve_cold(cold)
+    source = _COLD_SOURCES[source_name]
     check_composition(X, Z, opal_set)
-    alpha = _check_alpha(cold, alpha)
+    alpha = _check_alpha(source_name, compilation, alpha)
 
     # A descending or zero-width axis silently breaks every lookup: the reader
     # clips and searches assuming ascending order. Refuse both here rather than
@@ -475,7 +479,8 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
     spans_both = log_T[0] < split_log_T < log_T[-1]
     single = not (allow_split and spans_both)
     if single:
-        _check_or_advise((cold, "opal"), log_T, log_R, split_log_T, hot_log_R_max,
+        _check_or_advise((source_name, "opal"), log_T, log_R, split_log_T,
+                         hot_log_R_max,
                          allow_split)
     else:
         # The cold grid stops at the cold source's own ceiling; the hot grid,
@@ -486,17 +491,18 @@ def build(X=0.7381, Z=0.0134, cold="semenov",
             log_R = np.linspace(log_R[0], ceiling, n_R)
         # The cold grid is assembled over the whole temperature range, not
         # only below the split, so it is checked over the whole of it.
-        _check_or_advise((cold, "opal"), log_T[log_T < split_log_T], log_R,
+        _check_or_advise((source_name, "opal"), log_T[log_T < split_log_T],
+                         log_R,
                          split_log_T, hot_log_R_max)
         _check_or_advise(("opal",), log_T[log_T >= split_log_T], log_R,
                          split_log_T, hot_log_R_max)
 
-    block = _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo,
-                      alpha)
+    block = _assemble(source, source_name, log_T, log_R, X, Z, opal_set, dXc,
+                      dXo, alpha, compilation)
     built_R = (float(log_R[0]), float(log_R[-1]))
-    provenance = _provenance(X, Z, cold, source, n_T, n_R, log_T_range,
+    provenance = _provenance(X, Z, source_name, source, n_T, n_R, log_T_range,
                              built_R, hot_log_R_max, split_log_T, single,
-                             opal_set, dXc, dXo, alpha)
+                             opal_set, dXc, dXo, alpha, compilation)
     provenance["log_R_range_requested"] = (float(log_R_range[0]),
                                            float(log_R_range[1]))
     if not _cold_contributed(log_T):
@@ -528,10 +534,12 @@ def _cold_contributed(log_T):
 
 
 def _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo,
-              alpha=ferguson.DEFAULT_ALPHA):
+              alpha=ferguson.DEFAULT_ALPHA,
+              compilation=ferguson.DEFAULT_COMPILATION):
     """The cold source below OPAL's floor, ramped into OPAL across the overlap."""
     if cold == "ferguson":
-        below = source.grid(log_T, log_R, X, Z, alpha=alpha)
+        below = source.grid(log_T, log_R, X, Z, alpha=alpha,
+                            compilation=compilation)
     else:
         below = source.grid(log_T, log_R, Z)
     above = opal.grid(log_T, log_R, X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
@@ -557,7 +565,7 @@ def _assemble(source, cold, log_T, log_R, X, Z, opal_set, dXc, dXo,
 
 def _provenance(X, Z, cold, source, n_T, n_R, log_T_range, log_R_range,
                 hot_log_R_max, split_log_T, single, opal_set, dXc, dXo,
-                alpha=None):
+                alpha=None, compilation=None):
     """Everything needed to reproduce a build."""
     return {
         "X": X, "Y": 1.0 - X - Z, "Z": Z,
@@ -565,8 +573,8 @@ def _provenance(X, Z, cold, source, n_T, n_R, log_T_range, log_R_range,
         "cold_reference": source.REFERENCE,
         "hot_reference": opal.REFERENCE,
         "opal_set": opal_set,
-        "cold_set": (ferguson.set_name(alpha) if cold == "ferguson"
-                     else "semenov"),
+        "cold_set": (ferguson.set_name(alpha, compilation)
+                     if cold == "ferguson" else "semenov"),
         "dXc": float(dXc), "dXo": float(dXo),
         "reference_Z": source.REFERENCE_Z,
         "n_T": n_T, "n_R": n_R,

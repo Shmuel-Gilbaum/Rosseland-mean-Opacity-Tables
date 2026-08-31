@@ -26,9 +26,10 @@ def test_every_set_is_on_one_composition_grid():
     until it is checked. Interpolating in hydrogen and metals assumes it."""
     X0, Z0 = ferguson.compositions()
     T0, R0 = ferguson.axes()
-    for a in list(ferguson.alphas()) + [None]:
-        X, Z = ferguson.compositions(a)
-        T, R = ferguson.axes(a)
+    sets = [(a, "gs98") for a in ferguson.alphas()] + [(0.0, "g93")]
+    for a, c in sets:
+        X, Z = ferguson.compositions(a, c)
+        T, R = ferguson.axes(a, c)
         assert np.array_equal(np.sort(X), np.sort(X0))
         assert np.array_equal(np.sort(Z), np.sort(Z0))
         assert np.array_equal(T, T0) and np.array_equal(R, R0)
@@ -73,9 +74,9 @@ def test_an_enhancement_given_to_semenov_warns_and_is_ignored():
     assert k(800.0, 1e-12) == plain(800.0, 1e-12)
 
 
-def test_no_enhancement_selects_the_set_that_shipped_before_the_others():
-    """`alpha=None` is the Grevesse & Noels 1993 set, at different metal ratios
-    from the six. It must still read the file it always read."""
+def test_the_1993_compilation_still_reads_the_file_it_always_read():
+    """`cold='ferguson-g93'` is a different abundance compilation from the six,
+    not another enhancement of the same one. It must read the shipped file."""
     import os
     here = os.path.dirname(os.path.dirname(os.path.abspath(ferguson.__file__)))
     d = np.load(os.path.join(here, "data", "ferguson_f05_g93.npz"))
@@ -83,15 +84,44 @@ def test_no_enhancement_selects_the_set_that_shipped_before_the_others():
                              for k in ("X", "Z", "log_T", "log_R", "kappa"))
     i = int(np.argmin(np.abs(X - 0.7) + np.abs(Z - 0.02)))
     block = K[i][np.ix_(np.argsort(log_T), np.argsort(log_R))]
-    assert np.allclose(ferguson.table_at(0.7, 0.02, alpha=None), block)
-    assert ferguson.set_name(None) == "f05.g93"
+    assert np.allclose(ferguson.table_at(0.7, 0.02, compilation="g93"), block)
+    assert ferguson.set_name(compilation="g93") == "f05.g93"
 
 
 def test_the_provenance_names_the_published_archive():
-    for a, name in [(None, "f05.g93"), (-0.2, "f05.gs98-.2"),
-                    (0.0, "f05.gs98"), (0.6, "f05.gs98+.6")]:
+    for a, name in [(-0.2, "f05.gs98-.2"), (0.0, "f05.gs98"),
+                    (0.6, "f05.gs98+.6")]:
         p = rm_tables.opacity(cold="ferguson", alpha=a).provenance
         assert p["cold_set"] == name
+    assert (rm_tables.opacity(cold="ferguson-g93")
+            .provenance["cold_set"] == "f05.g93")
+
+
+def test_the_cold_argument_carries_the_compilation():
+    """One argument names the source and, for Ferguson, which abundance
+    compilation its tables were computed at. `'ferguson'` is the 1998 one,
+    which is the compilation the default OPAL set also uses."""
+    plain = rm_tables.opacity(X=0.7, Z=0.02, cold="ferguson")
+    named = rm_tables.opacity(X=0.7, Z=0.02, cold="ferguson-gs98")
+    old = rm_tables.opacity(X=0.7, Z=0.02, cold="ferguson-g93")
+    assert plain(800.0, 1e-12) == named(800.0, 1e-12)
+    assert plain(800.0, 1e-12) != old(800.0, 1e-12)
+    assert plain.provenance["cold"] == old.provenance["cold"] == "ferguson"
+
+
+def test_an_unknown_cold_source_names_what_is_available():
+    with pytest.raises(KeyError) as e:
+        rm_tables.opacity(cold="fergusson")
+    for name in ("semenov", "ferguson-gs98", "ferguson-g93"):
+        assert name in str(e.value)
+
+
+def test_an_enhancement_on_the_1993_compilation_raises():
+    """Ferguson published the 1993 tables at no enhancement only. Accepting
+    one silently would report an enhancement that reached no table."""
+    with pytest.raises(CoverageError) as e:
+        rm_tables.opacity(cold="ferguson-g93", alpha=0.6)
+    assert "1993" in str(e.value) and "1998" in str(e.value)
 
 
 def test_alpha_does_not_reach_above_the_handover():

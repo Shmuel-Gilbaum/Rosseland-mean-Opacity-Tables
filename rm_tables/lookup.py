@@ -102,7 +102,8 @@ class Opacity:
     """
 
     def __init__(self, X, Z, cold, provenance, opal_set, dXc, dXo,
-                 alpha=ferguson.DEFAULT_ALPHA):
+                 alpha=ferguson.DEFAULT_ALPHA,
+                 compilation=ferguson.DEFAULT_COMPILATION):
         self._cold = cold
         self._dust_coeffs = _c.DUST_COEFFS_HI_FIRST
         self._gas_grid = semenov._gas_grid()
@@ -113,11 +114,12 @@ class Opacity:
         self._floor_K = 10.0 ** _BY_NAME[cold].log_T[0]
         self._ceiling_K = 10.0 ** _BY_NAME["opal"].log_T[1]
         if cold == "ferguson":
-            f_T, f_R = ferguson.axes(alpha)
+            f_T, f_R = ferguson.axes(alpha, compilation)
             self._cold_T = np.ascontiguousarray(f_T)
             self._cold_R = np.ascontiguousarray(f_R)
             self._cold_k = np.ascontiguousarray(
-                ferguson.table_at(X, Z, alpha=alpha))
+                ferguson.table_at(X, Z, alpha=alpha,
+                                  compilation=compilation))
         own_T, own_R = opal.axes()
         block = opal.table_at(X, Z, opal_set=opal_set, dXc=dXc, dXo=dXo)
         # OPAL's published tables are blank in two corners. Carry the nearest
@@ -300,21 +302,55 @@ class Opacity:
         return f"Opacity(X={p['X']:.4f}, Z={p['Z']:.4f}, cold={p['cold']!r})"
 
 
-def _check_alpha(cold, alpha):
+COLD_SOURCES = ("semenov", "ferguson", "ferguson-gs98", "ferguson-g93")
+"""What `cold` accepts. ``'ferguson'`` is ``'ferguson-gs98'``."""
+
+_COLD_ALIASES = {
+    "semenov": ("semenov", None),
+    "ferguson": ("ferguson", "gs98"),
+    "ferguson-gs98": ("ferguson", "gs98"),
+    "ferguson-g93": ("ferguson", "g93"),
+}
+
+
+def _resolve_cold(cold):
+    """Split the `cold` argument into a source and an abundance compilation.
+
+    Returns
+    -------
+    source : {'semenov', 'ferguson'}
+        Which module answers below the handover.
+    compilation : str or None
+        The Ferguson compilation, or None for Semenov.
+
+    Raises
+    ------
+    KeyError
+        Naming what `cold` accepts.
+    """
+    try:
+        return _COLD_ALIASES[cold]
+    except (KeyError, TypeError):
+        raise KeyError(
+            "unknown cold source %r. Available: %s."
+            % (cold, ", ".join(repr(c) for c in COLD_SOURCES))) from None
+
+
+def _check_alpha(source, compilation, alpha):
     """Validate `alpha` against the cold source, and warn where it is idle.
 
     Returns the value to record, which is None wherever no alpha-enhanced
     table is read.
     """
-    if cold != "ferguson":
+    if source != "ferguson":
         if alpha not in (None, ferguson.DEFAULT_ALPHA):
             warnings.warn(
-                "alpha=%g was given with cold=%r, which carries no alpha "
-                "enhancement, so it was ignored. Alpha enhancement reaches "
-                "the opacity only through cold='ferguson'." % (alpha, cold),
-                stacklevel=3)
+                "alpha=%g was given with cold='semenov', which carries no "
+                "alpha enhancement, so it was ignored. Alpha enhancement "
+                "reaches the opacity only through a Ferguson cold source."
+                % alpha, stacklevel=3)
         return None
-    ferguson._key(alpha)          # raises CoverageError on an untabulated value
+    ferguson._key(alpha, compilation)     # raises on an untabulated request
     return None if alpha is None else float(alpha)
 
 
@@ -327,18 +363,25 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov",
     ----------
     X, Z : float, optional
         Hydrogen and metal mass fractions. Helium is the remainder.
-    cold : {'semenov', 'ferguson'}, optional
-        Cold source. Semenov gives evaporation temperatures and Ferguson
+    cold : {'semenov', 'ferguson', 'ferguson-gs98', 'ferguson-g93'}, optional
+        Cold source, and for Ferguson the abundance compilation its tables
+        were computed at. Semenov gives evaporation temperatures and Ferguson
         gives condensation temperatures, so Semenov suits material that is
-        heating and Ferguson material that is cooling.
+        heating and Ferguson material that is cooling. ``'ferguson'`` is
+        ``'ferguson-gs98'``, at Grevesse & Sauval 1998 ratios, which pairs
+        with the default OPAL set `GS98hz`; ``'ferguson-g93'`` is at Grevesse
+        & Noels 1993 ratios and pairs with `GN93hz` and with OPAL's carbon-
+        and oxygen-rich sets, which are published at those ratios only.
     opal_set : str, optional
         Which OPAL file supplies the hot opacity, from
         `rm_tables.sources.opal.sets()`. Selects the metal mixture.
-    alpha : float or None, optional
+    alpha : float, optional
         Alpha enhancement of the cold Ferguson opacity: oxygen, magnesium and
         silicon against iron, at fixed total metal fraction. One of the six
-        values `rm_tables.sources.ferguson.alphas` lists, or None for the
-        Grevesse & Noels 1993 set. It reaches the dust and molecular opacity
+        values `rm_tables.sources.ferguson.alphas` lists. Only the Grevesse &
+        Sauval 1998 tables carry enhancements, so a non-zero value with
+        ``cold='ferguson-g93'`` raises. It reaches the dust and molecular
+        opacity
         only; above 10,000 K the hot source answers and `opal_set` selects its
         mixture. That split costs 0.015 dex, measured between OPAL's own
         enhanced and unenhanced tables, against 0.189 dex for the same
@@ -365,7 +408,7 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov",
         metallicity. `CoverageError` subclasses `ValueError` too, so one
         ``except ValueError`` catches every composition refusal.
     KeyError
-        If `cold` is neither ``'semenov'`` nor ``'ferguson'``.
+        If `cold` is not one of `COLD_SOURCES`.
 
     Examples
     --------
@@ -384,22 +427,20 @@ def opacity(X=0.7381, Z=0.0134, cold="semenov",
     """
     X, Z = float(X), float(Z)
     check_composition(X, Z, opal_set)
-    if cold not in ("semenov", "ferguson"):
-        raise KeyError(f"unknown cold source {cold!r}. "
-                       f"Available: 'semenov', 'ferguson'.")
-    alpha = _check_alpha(cold, alpha)
+    source, compilation = _resolve_cold(cold)
+    alpha = _check_alpha(source, compilation, alpha)
     provenance = {
-        "X": X, "Y": 1.0 - X - Z, "Z": Z, "cold": cold,
-        "cold_reference": (ferguson.REFERENCE if cold == "ferguson"
+        "X": X, "Y": 1.0 - X - Z, "Z": Z, "cold": source,
+        "cold_reference": (ferguson.REFERENCE if source == "ferguson"
                            else semenov.REFERENCE),
         "hot_reference": opal.REFERENCE,
         "opal_set": opal_set,
-        "cold_set": (ferguson.set_name(alpha) if cold == "ferguson"
-                     else "semenov"),
+        "cold_set": (ferguson.set_name(alpha, compilation)
+                     if source == "ferguson" else "semenov"),
         "dXc": float(dXc), "dXo": float(dXo),
-        "reference_Z": (ferguson.REFERENCE_Z if cold == "ferguson"
+        "reference_Z": (ferguson.REFERENCE_Z if source == "ferguson"
                         else semenov.REFERENCE_Z),
         "units": "cm^2/g",
     }
-    return Opacity(X, Z, cold, provenance, opal_set, float(dXc), float(dXo),
-                   alpha)
+    return Opacity(X, Z, source, provenance, opal_set, float(dXc),
+                   float(dXo), alpha, compilation)

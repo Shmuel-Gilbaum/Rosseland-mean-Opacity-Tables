@@ -159,13 +159,21 @@ for a in ferguson.alphas():
 # -> +0.8  0.304262
 ```
 
-The default is 0.0. Those six sets are at Grevesse & Sauval 1998 metal ratios.
-`alpha=None` selects `f05.g93`, at Grevesse & Noels 1993 ratios, which was this
-package's only cold Ferguson table before the others were added.
+The default is 0.0. Those six sets are at Grevesse & Sauval 1998 metal ratios,
+which is also the compilation of the default OPAL set, so `cold="ferguson"` and
+the default hot end are one mixture.
+
+The seventh set is at Grevesse & Noels 1993 ratios. It is a different
+compilation rather than another enhancement, so the `cold` argument names it.
 
 ```python
-print(rm_tables.opacity(cold="ferguson", alpha=None)(800.0, 1e-12))  # -> 0.5331353949488168
+print(rm_tables.opacity(cold="ferguson-g93")(800.0, 1e-12))  # -> 0.5331353949488168
 ```
+
+Pair it with `opal_set="GN93hz"` to keep both halves on one mixture. It is also
+the cold partner for OPAL's carbon- and oxygen-rich sets, which are published
+at those ratios and at no others. It carries no enhanced tables, so an `alpha`
+with it raises.
 
 The six are separate calculations rather than points on an axis this package
 interpolates, so an untabulated enhancement raises.

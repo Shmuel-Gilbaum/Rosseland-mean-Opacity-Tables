@@ -34,15 +34,19 @@ Grevesse & Noels 1993 ratios and differs by a median 0.002 dex. Obtained from
 Arnold Boothroyd's public mirror at the Canadian Institute for Theoretical
 Astrophysics.
 
-**Ferguson** ships as seven sets of 155 tables. Six are at Grevesse & Sauval
-1998 metal ratios, at alpha enhancements of -0.2, 0.0, 0.2, 0.4, 0.6 and 0.8,
-selected with `alpha`; the default is 0.0. Alpha enhancement raises oxygen,
-magnesium and silicon against iron at fixed total metal fraction, which no
-choice of `X` and `Z` can reach. It moves the dust opacity by 0.054 to 0.079
-dex per step and the whole table by 0.189 dex at 0.8, against 0.025 dex for
-swapping the abundance compilation. The seventh set is `f05.g93` at Grevesse &
-Noels 1993 ratios, reached with `alpha=None`, and was this package's only cold
-Ferguson table before the alpha sets were added.
+**Ferguson** ships as seven sets of 155 tables, in two abundance compilations.
+Six are at Grevesse & Sauval 1998 ratios, `cold="ferguson"`, at alpha
+enhancements of -0.2, 0.0, 0.2, 0.4, 0.6 and 0.8 selected with `alpha`; the
+default is 0.0, and 1998 is also the compilation of the default OPAL set, so
+both halves are one mixture. Alpha enhancement raises oxygen, magnesium and
+silicon against iron at fixed total metal fraction, which no choice of `X` and
+`Z` can reach. It moves the dust opacity by 0.054 to 0.079 dex per step and the
+whole table by 0.189 dex at 0.8, against 0.025 dex for swapping the compilation.
+
+The seventh set is at Grevesse & Noels 1993 ratios, `cold="ferguson-g93"`. It
+pairs with `opal_set="GN93hz"`, and with OPAL's carbon- and oxygen-rich sets,
+which are published at those ratios and at no others. It carries no enhanced
+tables, so an `alpha` with it raises.
 
 Alpha reaches the dust and molecular opacity only. Above 10,000 K the hot
 source answers and `opal_set` selects its mixture; OPAL's own enhanced and
@@ -81,10 +85,11 @@ print(kappa(3000.0, 1e-14))    # -> 6.635618312601376e-05
 ```
 
 `X` and `Z` are the hydrogen and metal mass fractions and helium is the
-remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source, `opal_set`
-picks which of OPAL's 77 published files supplies the hot end, `alpha` picks the
-alpha enhancement of the cold Ferguson tables, and `dXc` and `dXo` add carbon
-and oxygen beyond what `Z` carries.
+remainder, so `X + Z` cannot exceed 1. `cold` picks the cold source and, for
+Ferguson, its abundance compilation: `"semenov"`, `"ferguson"`, or
+`"ferguson-g93"`. `opal_set` picks which of OPAL's 77 published files supplies
+the hot end, `alpha` picks the alpha enhancement of the cold Ferguson tables,
+and `dXc` and `dXo` add carbon and oxygen beyond what `Z` carries.
 
 A composition outside what the chosen set tabulates raises rather than
 extrapolating.
@@ -195,7 +200,7 @@ package.
 | --- | --- | --- |
 | hot opacity, always | Iglesias & Rogers 1996, ApJ 464, 943 | [1996ApJ...464..943I](https://ui.adsabs.harvard.edu/abs/1996ApJ...464..943I/abstract) |
 | cold opacity, `cold="semenov"` | Semenov et al. 2003, A&A 410, 611 | [2003A&A...410..611S](https://ui.adsabs.harvard.edu/abs/2003A%26A...410..611S/abstract) |
-| cold opacity, `cold="ferguson"` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
+| cold opacity, any `cold="ferguson..."` | Ferguson et al. 2005, ApJ 623, 585 | [2005ApJ...623..585F](https://ui.adsabs.harvard.edu/abs/2005ApJ...623..585F/abstract) |
 
 OPAL is read at every temperature above 5623 K, so it is cited whatever the
 cold source is. From 5623 to 10,000 K the answer is a blend in `log10` of the
@@ -206,7 +211,7 @@ Composition references apply where a result depends on the metal mixture rather
 than on the metal mass fraction alone. The default OPAL set `GS98hz` and the six
 alpha-enhanced Ferguson sets are at Grevesse & Sauval 1998 ratios,
 [1998SSRv...85..161G](https://ui.adsabs.harvard.edu/abs/1998SSRv...85..161G/abstract).
-The OPAL set `GN93hz` and the Ferguson set `f05.g93`, reached with `alpha=None`,
+The OPAL set `GN93hz` and the Ferguson set reached with `cold="ferguson-g93"`
 are at Grevesse & Noels 1993 ratios,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract);
 the other OPAL sets carry their own mixture, and
