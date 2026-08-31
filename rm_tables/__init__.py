@@ -27,4 +27,4 @@ from .io import load
 from .tables import build
 
 __all__ = ["opacity", "build", "load"]
-__version__ = "0.1.2"
+__version__ = "0.1.3"

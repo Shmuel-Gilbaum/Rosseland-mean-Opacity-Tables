@@ -482,6 +482,11 @@ source `cold` names. A published result cites both, and this package.
 A result that depends on the metal mixture rather than on the metal mass
 fraction alone carries one more. The default OPAL set `GS98hz` is at Grevesse
 & Sauval 1998 ratios, as are the six alpha-enhanced Ferguson sets,
+[1998SSRv...85..161G](https://ui.adsabs.harvard.edu/abs/1998SSRv...85..161G/abstract).
+A non-zero `alpha` carries Dotter et al. 2008, ApJS 178, 89,
+[2008ApJS..178...89D](https://ui.adsabs.harvard.edu/abs/2008ApJS..178...89D/abstract),
+the grid those five sets were computed for. `GN93hz` and `f05.g93` are at
+Grevesse & Noels 1993 ratios,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract).
 `rm_tables.sources.opal.sets()` names the other sets, each carrying its own
 mixture. Semenov's coefficients are computed at Anders &

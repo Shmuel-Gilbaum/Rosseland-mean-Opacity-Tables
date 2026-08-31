@@ -9,7 +9,7 @@ type: software
 authors:
   - family-names: Gilbaum
     given-names: Shmuel
-version: 0.1.1
+version: 0.1.3
 license: MIT
 repository-code: "https://github.com/Shmuel-Gilbaum/Rosseland-mean-Opacity-Tables"
 
@@ -82,7 +82,8 @@ references:
       - type: other
         value: "2005ApJ...623..585F"
         description: ADS bibcode
-    notes: Cold opacity when cold="ferguson".
+    notes: >-
+      Cold opacity when cold="ferguson", at every alpha enhancement.
 
   - type: conference-paper
     title: Cosmic abundances of the elements
@@ -98,7 +99,54 @@ references:
       - type: other
         value: "1993oee..conf...15G"
         description: ADS bibcode
-    notes: Metal ratios of the default OPAL set GN93hz.
+    notes: Metal ratios of the OPAL set GN93hz and the Ferguson set f05.g93.
+
+  - type: article
+    title: "Standard Solar Composition"
+    authors:
+      - family-names: Grevesse
+        given-names: N.
+      - family-names: Sauval
+        given-names: A. J.
+    year: 1998
+    journal: Space Science Reviews
+    volume: 85
+    start: 161
+    end: 174
+    identifiers:
+      - type: other
+        value: "1998SSRv...85..161G"
+        description: ADS bibcode
+    notes: >-
+      Metal ratios of the default OPAL set GS98hz and of the six
+      alpha-enhanced Ferguson sets.
+
+  - type: article
+    title: The Dartmouth Stellar Evolution Database
+    authors:
+      - family-names: Dotter
+        given-names: Aaron
+      - family-names: Chaboyer
+        given-names: Brian
+      - family-names: Jevremovic
+        given-names: Darko
+      - family-names: Kostov
+        given-names: Veselin
+      - family-names: Baron
+        given-names: E.
+      - family-names: Ferguson
+        given-names: Jason W.
+    year: 2008
+    journal: The Astrophysical Journal Supplement Series
+    volume: 178
+    start: 89
+    identifiers:
+      - type: other
+        value: "2008ApJS..178...89D"
+        description: ADS bibcode
+    notes: >-
+      The grid the five alpha-enhanced Ferguson sets were computed for. Cited
+      with a non-zero alpha.
 
   - type: article
     title: "Abundances of the elements: Meteoritic and solar"

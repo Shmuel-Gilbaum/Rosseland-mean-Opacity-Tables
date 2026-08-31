@@ -202,15 +202,23 @@ cold source is. From 5623 to 10,000 K the answer is a blend in `log10` of the
 cold source and OPAL; above 10,000 K OPAL is alone. One cold source is read per
 call, and the `cold` argument names it.
 
-Two composition references apply where a result depends on the metal mixture
-rather than on the metal mass fraction alone. The default OPAL set `GN93hz` is
-at Grevesse & Noels 1993 ratios,
+Composition references apply where a result depends on the metal mixture rather
+than on the metal mass fraction alone. The default OPAL set `GS98hz` and the six
+alpha-enhanced Ferguson sets are at Grevesse & Sauval 1998 ratios,
+[1998SSRv...85..161G](https://ui.adsabs.harvard.edu/abs/1998SSRv...85..161G/abstract).
+The OPAL set `GN93hz` and the Ferguson set `f05.g93`, reached with `alpha=None`,
+are at Grevesse & Noels 1993 ratios,
 [1993oee..conf...15G](https://ui.adsabs.harvard.edu/abs/1993oee..conf...15G/abstract);
-the other sets carry their own mixture, and
+the other OPAL sets carry their own mixture, and
 `rm_tables.sources.opal.sets()` names them. Semenov's coefficients are computed at Anders &
 Grevesse 1989,
 [1989GeCoA..53..197A](https://ui.adsabs.harvard.edu/abs/1989GeCoA..53..197A/abstract),
 which is the composition a requested metallicity is scaled from.
+
+A non-zero `alpha` carries one more. The five enhanced Ferguson sets were
+computed for the Dartmouth stellar evolution grid, Dotter et al. 2008, ApJS 178,
+89,
+[2008ApJS..178...89D](https://ui.adsabs.harvard.edu/abs/2008ApJS..178...89D/abstract).
 
 ADS exports BibTeX from any of these bibcodes.
 
